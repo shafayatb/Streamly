@@ -11,6 +11,7 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.shafayatb.streamly.home.HomePlaceholderScreen
 import com.shafayatb.streamly.onboarding.OnboardingRoot
 import com.shafayatb.streamly.onboarding.email.EmailSignInRoot
+import com.shafayatb.streamly.player.PlayerRoot
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -22,6 +23,7 @@ private val navigationConfiguration = SavedStateConfiguration {
             subclass(Route.Onboarding::class)
             subclass(Route.EmailSignIn::class)
             subclass(Route.Home::class)
+            subclass(Route.Player::class)
         }
     }
 }
@@ -52,6 +54,12 @@ fun AppNavigation(startRoute: Route) {
             }
             entry<Route.Home> {
                 HomePlaceholderScreen()
+            }
+            entry<Route.Player> { route ->
+                PlayerRoot(
+                    videoId = route.videoId,
+                    onNavigateBack = { backStack.popIfNotRoot() },
+                )
             }
         },
     )
