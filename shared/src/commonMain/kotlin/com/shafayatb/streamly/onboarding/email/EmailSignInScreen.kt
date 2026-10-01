@@ -79,16 +79,6 @@ fun EmailSignInScreen(
                 .fillMaxSize()
                 .safeDrawingPadding(),
         ) {
-            IconButton(
-                onClick = { onIntent(EmailSignInIntent.NavigateBack) },
-                modifier = Modifier.padding(8.dp),
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_arrow_back),
-                    contentDescription = stringResource(Res.string.cd_navigate_back),
-                    tint = Color.White,
-                )
-            }
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -140,6 +130,17 @@ fun EmailSignInScreen(
                         OnBrandErrorText(text = error.asString(), modifier = Modifier.fillMaxWidth())
                     }
                 }
+            }
+            // Declared after the scrolling content so it stays on top and receives touches.
+            IconButton(
+                onClick = { onIntent(EmailSignInIntent.NavigateBack) },
+                modifier = Modifier.padding(8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_arrow_back),
+                    contentDescription = stringResource(Res.string.cd_navigate_back),
+                    tint = Color.White,
+                )
             }
         }
     }

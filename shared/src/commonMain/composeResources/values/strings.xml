@@ -9,7 +9,7 @@
     <string name="onboarding_continue_as_guest">Continue as guest</string>
 
     <string name="email_sign_in_title">Sign in with email</string>
-    <string name="email_sign_in_subtitle">Enter your email to continue. This demo doesn\'t need a password.</string>
+    <string name="email_sign_in_subtitle">Enter your email to continue. This demo doesn’t need a password.</string>
     <string name="email_sign_in_label">Email address</string>
     <string name="email_sign_in_continue">Continue</string>
 
