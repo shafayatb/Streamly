@@ -51,6 +51,10 @@ October 4 until told otherwise.
 - After every implementation task, install and exercise the changed journey on an Android device
   or emulator. Run the build and relevant tests. Record the device, steps, and result. If a check
   cannot run, report it as unverified; do not claim that task is complete.
+- **Never commit or merge without the user's explicit go-ahead.** When a change is ready, stage
+  it, show `git status` and a summary of `git diff --cached`, propose the commit message(s), and
+  stop. The user reviews the diff against these rules first. Approval covers only the commits or
+  merge it names; ask again for the next one.
 - Use Gitflow: `feature/<task-name>` branches from `develop` and merges back after verification.
   Use `release/<version>` for the final gate, then merge to `main` and back to `develop`. Push or
   create a remote PR only when the user asks.

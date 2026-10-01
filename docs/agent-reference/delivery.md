@@ -16,11 +16,12 @@ buildable after each task. These targets do not permit omitting a brief requirem
    README, debug APK, and a 2–4 minute demo of all seven reference views.
 
 For each task: implement its single outcome, run the build and relevant automated tests, exercise
-the changed journey on a device, and make a focused commit or a few independently meaningful
-commits. Do not batch onboarding, feed, player, and downloads into one acceptance gate or commit.
-Fix failures before marking the task complete. If a device or required stream is unavailable,
-record the exact unverified behavior and leave the feature branch unmerged. After a verified task,
-merge into `develop`, summarize evidence, write the next self-contained task in `FRESH_PROMPT.md`,
+the changed journey on a device, then stage a focused commit or a few independently meaningful
+commits and stop for the user's diff review. Do not batch onboarding, feed, player, and downloads
+into one acceptance gate or commit. Fix failures before marking the task complete. If a device or
+required stream is unavailable, record the exact unverified behavior and leave the feature branch
+unmerged. After a verified task and the user's approval, commit, merge into `develop`, summarize
+evidence, write the next self-contained task in `FRESH_PROMPT.md`,
 and stop. Invite the user to start a fresh chat with that file; the chat boundary is for context
 management, while the acceptance gate is verification of the focused task.
 
@@ -29,7 +30,8 @@ management, while the acceptance gate is verification of the focused task.
 - Use **Gitflow**. Keep `main` for verified releases and `develop` for integration. If `develop`
   does not yet exist, create it from `main` before the first implementation task. Develop each
   focused task on `feature/<task-name>` branched from `develop`. After its build, relevant tests,
-  and device gate pass, make focused commits and merge it into `develop`; check the integrated build.
+  and device gate pass and the user approves the staged diff, make focused commits and merge it into
+  `develop`; check the integrated build.
   Leave a failing or unverified feature branch unmerged and report why.
 - For delivery, create `release/<version>` from `develop`. Perform the full end-to-end device pass,
   regression checks, README/APK/demo review, and any release fixes there. Merge the verified
@@ -42,8 +44,10 @@ management, while the acceptance gate is verification of the focused task.
   AI-assisted work; the brief also accepts an agent changelog or prompt logs.
 - Write small, focused commits with descriptive messages. Never commit secrets, `local.properties`,
   or the brief PDF.
-- The project owner has authorized local Gitflow branches, focused commits, and the local merges
-  described above. Push or create a remote pull request only when the user asks.
+- The project owner has authorized creating local Gitflow branches. **Commits and merges are not
+  pre-authorized:** stage the changes, show `git status` and a `git diff --cached` summary with the
+  proposed commit message(s), and stop until the user explicitly approves. Approval covers only
+  the commits or merge it names. Push or create a remote pull request only when the user asks.
 - Keep the README up to date. It must cover setup, architecture decisions, the AI-assisted workflow
   (setup and prompting approach), and any shortcuts taken and why.
 - Keep `FRESH_PROMPT.md` as a single, current handoff prompt. Update it at task boundaries
