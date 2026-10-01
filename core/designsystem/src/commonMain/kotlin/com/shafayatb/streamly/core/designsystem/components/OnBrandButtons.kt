@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.shafayatb.streamly.core.designsystem.theme.StreamlyPalette
 import com.shafayatb.streamly.core.designsystem.theme.StreamlyTheme
 
 private val PillHeight = 52.dp
@@ -37,7 +38,8 @@ public fun OnBrandButton(
     enabled: Boolean = true,
     isLoading: Boolean = false,
 ) {
-    val contentColor = MaterialTheme.colorScheme.primary
+    // Brand surfaces look the same in light and dark themes, so the label ignores colorScheme.
+    val contentColor = StreamlyPalette.Indigo700
     Button(
         onClick = onClick,
         enabled = enabled && !isLoading,
