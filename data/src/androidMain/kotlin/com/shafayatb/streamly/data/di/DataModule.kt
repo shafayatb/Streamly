@@ -1,8 +1,12 @@
 package com.shafayatb.streamly.data.di
 
+import com.shafayatb.streamly.data.network.createApiHttpClient
 import com.shafayatb.streamly.data.session.DataStoreSessionRepository
 import com.shafayatb.streamly.data.session.createSessionDataStore
+import com.shafayatb.streamly.data.video.KtorVideoRepository
+import com.shafayatb.streamly.data.video.catalog.CatalogMockApi
 import com.shafayatb.streamly.domain.session.SessionRepository
+import com.shafayatb.streamly.domain.video.VideoRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,4 +22,8 @@ public val dataModule: Module = module {
         )
     }
     single<SessionRepository> { DataStoreSessionRepository(dataStore = get()) }
+
+    // The catalog API is mocked (see CatalogMockApi); a real backend only needs another engine.
+    single { createApiHttpClient(engine = CatalogMockApi().engine()) }
+    single<VideoRepository> { KtorVideoRepository(client = get()) }
 }
