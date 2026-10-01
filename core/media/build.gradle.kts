@@ -23,13 +23,20 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":domain"))
+            implementation(libs.koin.core)
         }
         androidMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.exoplayer.hls)
+            implementation(libs.media3.ui.compose)
+            implementation(libs.koin.android)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
         }
     }
 }
