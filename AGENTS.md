@@ -56,8 +56,13 @@ October 4 until told otherwise.
   stop. The user reviews the diff against these rules first. Approval covers only the commits or
   merge it names; ask again for the next one. Commit messages follow Conventional Commits
   (`feat(player): …`, `fix(downloads): …`); see the delivery guide.
-- Use Gitflow: `feature/<task-name>` branches from `develop` and merges back after verification.
+- Use Gitflow: each main feature task (a `FRESH_PROMPT.md` task such as onboarding, the feed, or
+  the player) gets a `feature/<task-name>` branch from `develop` that merges back after
+  verification. Small changes such as docs, agent rules, or config tweaks are committed directly
+  on `develop`, still subject to the approval rule; do not create a branch for them.
   Use `release/<version>` for the final gate, then merge to `main` and back to `develop`. Push or
   create a remote PR only when the user asks.
+- **Never delete branches**, local or remote, including merged `feature/*`, `release/*`, and
+  `hotfix/*` branches. Keep them after merging so the branch history stays visible.
 - At each task boundary, update the local `FRESH_PROMPT.md` with the next task and evidence, then
   stop with a handoff. Keep the README current. Do not commit secrets or the gitignored brief.

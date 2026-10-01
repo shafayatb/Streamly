@@ -29,7 +29,9 @@ management, while the acceptance gate is verification of the focused task.
 
 - Use **Gitflow**. Keep `main` for verified releases and `develop` for integration. If `develop`
   does not yet exist, create it from `main` before the first implementation task. Develop each
-  focused task on `feature/<task-name>` branched from `develop`. After its build, relevant tests,
+  main feature task on `feature/<task-name>` branched from `develop`. Commit small changes (docs,
+  agent rules, config tweaks) directly on `develop` without a branch, after the user approves the
+  staged diff. For a feature task, after its build, relevant tests,
   and device gate pass and the user approves the staged diff, make focused commits and merge it into
   `develop`; check the integrated build.
   Leave a failing or unverified feature branch unmerged and report why.
