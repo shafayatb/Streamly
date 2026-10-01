@@ -8,7 +8,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import com.shafayatb.streamly.home.HomePlaceholderScreen
+import com.shafayatb.streamly.home.HomeRoot
 import com.shafayatb.streamly.onboarding.OnboardingRoot
 import com.shafayatb.streamly.onboarding.email.EmailSignInRoot
 import com.shafayatb.streamly.player.PlayerRoot
@@ -53,7 +53,7 @@ fun AppNavigation(startRoute: Route) {
                 )
             }
             entry<Route.Home> {
-                HomePlaceholderScreen()
+                HomeRoot(onNavigateToPlayer = { videoId -> backStack.add(Route.Player(videoId)) })
             }
             entry<Route.Player> { route ->
                 PlayerRoot(

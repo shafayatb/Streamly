@@ -16,3 +16,14 @@ fun singleColumnMaxWidth(): Dp {
         else -> Dp.Infinity
     }
 }
+
+/** Columns for a feed of video cards: one on phones, more as the window widens. */
+@Composable
+fun feedGridColumns(): Int {
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    return when {
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) -> 3
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) -> 2
+        else -> 1
+    }
+}

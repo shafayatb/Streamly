@@ -14,7 +14,23 @@
     <string name="email_sign_in_continue">Continue</string>
 
     <string name="home_title">Streamly</string>
-    <string name="home_placeholder">Your feed is on its way.</string>
+    <string name="home_filter_all">All</string>
+    <string name="home_filter_music">Music</string>
+    <string name="home_filter_live">Live</string>
+    <string name="home_loading">Loading videos</string>
+    <string name="home_empty_all_title">No videos yet</string>
+    <string name="home_empty_all_body">New videos will show up here.</string>
+    <string name="home_empty_music_title">No music videos yet</string>
+    <string name="home_empty_music_body">Check back soon, or browse everything else.</string>
+    <string name="home_empty_live_title">Nobody’s live right now</string>
+    <string name="home_empty_live_body">Live streams will show up here when they start.</string>
+    <string name="home_show_all">Show all videos</string>
+    <string name="home_refresh">Refresh</string>
+    <string name="home_error_title">Couldn’t load your feed</string>
+
+    <string name="video_live">LIVE</string>
+    <string name="video_card_metadata">%1$s · %2$s · %3$s</string>
+    <string name="age_just_now">Just now</string>
 
     <string name="player_coming_soon">Playback is coming soon</string>
     <string name="action_retry">Try again</string>
