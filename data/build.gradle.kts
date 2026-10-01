@@ -27,6 +27,8 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.kotlinxJson)
+            // Serves the bundled catalog through the real client pipeline; see CatalogMockApi.
+            implementation(libs.ktor.client.mock)
             implementation(libs.androidx.datastore.preferences)
             implementation(libs.koin.core)
         }
@@ -38,7 +40,6 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
-            implementation(libs.ktor.client.mock)
         }
     }
 }
