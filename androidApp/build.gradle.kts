@@ -12,6 +12,8 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":data"))
+    implementation(project(":core:media"))
 
     implementation(libs.androidx.activity.compose)
 

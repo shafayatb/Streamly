@@ -32,10 +32,13 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
+            implementation(project(":core:media"))
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation(project(":domain"))
+            implementation(project(":core:designsystem"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
