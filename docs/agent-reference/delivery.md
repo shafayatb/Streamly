@@ -42,8 +42,17 @@ management, while the acceptance gate is verification of the focused task.
   loop.
 - Use a `Co-Authored-By:` trailer for each agent-authored commit as this repo's chosen evidence of
   AI-assisted work; the brief also accepts an agent changelog or prompt logs.
-- Write small, focused commits with descriptive messages. Never commit secrets, `local.properties`,
-  or the brief PDF.
+- Write small, focused commits. Never commit secrets, `local.properties`, or the brief PDF.
+- Use **Conventional Commits** for every commit message: `<type>(<scope>): <summary>`.
+  - Types: `feat` (new behavior), `fix` (bug fix), `refactor`, `perf`, `test`, `docs`, `build`
+    (Gradle, dependencies, modules), `ci`, `style`, `chore`, `revert`.
+  - Scope is optional and names the area: a module (`domain`, `data`, `media`, `designsystem`,
+    `app`) or a feature (`onboarding`, `feed`, `shorts`, `player`, `downloads`, `profile`).
+  - Write the summary in the imperative and in lowercase, without a trailing period, in at most 72
+    characters, e.g. `feat(player): add mute toggle`. Mark breaking changes with `!` after the
+    type or scope.
+  - Use the body to explain why, and end with the `Co-Authored-By:` trailer. Keep Git's default
+    message for merge commits.
 - The project owner has authorized creating local Gitflow branches. **Commits and merges are not
   pre-authorized:** stage the changes, show `git status` and a `git diff --cached` summary with the
   proposed commit message(s), and stop until the user explicitly approves. Approval covers only

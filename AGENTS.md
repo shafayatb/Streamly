@@ -54,7 +54,8 @@ October 4 until told otherwise.
 - **Never commit or merge without the user's explicit go-ahead.** When a change is ready, stage
   it, show `git status` and a summary of `git diff --cached`, propose the commit message(s), and
   stop. The user reviews the diff against these rules first. Approval covers only the commits or
-  merge it names; ask again for the next one.
+  merge it names; ask again for the next one. Commit messages follow Conventional Commits
+  (`feat(player): …`, `fix(downloads): …`); see the delivery guide.
 - Use Gitflow: `feature/<task-name>` branches from `develop` and merges back after verification.
   Use `release/<version>` for the final gate, then merge to `main` and back to `develop`. Push or
   create a remote PR only when the user asks.
