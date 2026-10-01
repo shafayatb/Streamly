@@ -16,6 +16,11 @@ class FakeSessionRepository(initial: Session? = null) : SessionRepository {
     private val sessionFlow = MutableStateFlow(initial)
     override val session: StateFlow<Session?> = sessionFlow
 
+    /** Simulates the stored session changing outside the code under test. */
+    fun setSession(session: Session?) {
+        sessionFlow.value = session
+    }
+
     /** When set, every write fails with this error instead of storing a session. */
     var failure: DataError.Local? = null
 

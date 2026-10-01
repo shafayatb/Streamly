@@ -13,6 +13,9 @@
     <string name="email_sign_in_label">Email address</string>
     <string name="email_sign_in_continue">Continue</string>
 
+    <string name="home_title">Streamly</string>
+    <string name="home_placeholder">Your feed is on its way.</string>
+
     <string name="error_email_blank">Enter your email address.</string>
     <string name="error_email_invalid">Enter a valid email address, like name@example.com.</string>
     <string name="error_storage_full">Your device is out of storage. Free up some space and try again.</string>
