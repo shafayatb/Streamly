@@ -1,0 +1,23 @@
+<resources>
+    <string name="cd_streamly_logo">Streamly logo</string>
+    <string name="cd_navigate_back">Back</string>
+
+    <string name="onboarding_title">Welcome to Streamly</string>
+    <string name="onboarding_subtitle">Watch videos &amp; shorts, offline too.</string>
+    <string name="onboarding_continue_with_google">Continue with Google</string>
+    <string name="onboarding_sign_in_with_email">Sign in with email</string>
+    <string name="onboarding_continue_as_guest">Continue as guest</string>
+
+    <string name="email_sign_in_title">Sign in with email</string>
+    <string name="email_sign_in_subtitle">Enter your email to continue. This demo doesn’t need a password.</string>
+    <string name="email_sign_in_label">Email address</string>
+    <string name="email_sign_in_continue">Continue</string>
+
+    <string name="home_title">Streamly</string>
+    <string name="home_placeholder">Your feed is on its way.</string>
+
+    <string name="error_email_blank">Enter your email address.</string>
+    <string name="error_email_invalid">Enter a valid email address, like name@example.com.</string>
+    <string name="error_storage_full">Your device is out of storage. Free up some space and try again.</string>
+    <string name="error_storage_unknown">Something went wrong saving your session. Please try again.</string>
+</resources>
