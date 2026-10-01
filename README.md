@@ -4,8 +4,9 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** project setup. The module graph and dependencies are in place, and the app launches
-> the starter screen. Features are implemented in later tasks.
+> **Status:** onboarding and a persisted session are done. Signing in with the mocked Google
+> account, an email address, or as a guest stores the session, and returning users go straight to
+> Home, which is a placeholder until the feed task.
 
 ## Setup
 
@@ -100,4 +101,15 @@ The project is built with Claude Code as the agent throughout.
 
 ## Shortcuts
 
-None yet. Shortcuts taken during feature work, and the reasons for them, will be listed here.
+- **Mocked authentication.** The brief does not require a real auth API. "Continue with Google"
+  signs in at once with a fixed demo profile (Anika Rahman, anika@streamly.app). Email sign-in
+  asks only for a valid address, with no password, and builds the display name from it
+  (`jane.doe@…` becomes "Jane Doe"). The session is stored locally in DataStore.
+- **Home is a placeholder.** It proves the session routing until the feed is built.
+
+### Known polish gaps
+
+- The launch splash is the default Android one rather than a branded splash.
+- Status bar icons are always light, which suits the current brand-colored headers. Screens with
+  light headers will need per-screen system bar styling.
+- Text uses the default font instead of the rounded display font in the mockups.
