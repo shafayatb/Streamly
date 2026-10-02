@@ -15,7 +15,8 @@ Multiplatform, with an Android target only.
 > tab, and a notification; finished downloads play with the network off and can be removed.
 > Downloads belong to the account that saved them: signing out hides them, and signing in again
 > as the same account brings them back. Profile shows the account and signs out after a
-> confirmation, returning to onboarding.
+> confirmation, returning to onboarding. The app has its own launcher icon, a branded splash
+> that stays until the stored session is read, and the mockups' typeface, Baloo Da 2.
 
 ## Setup
 
@@ -287,6 +288,24 @@ A guest sees a person icon, "Guest", and "Not signed in", and a primary "Sign in
 Sign out. It asks "Leave guest mode?" (guest downloads stay for the next time you continue as a
 guest) and then opens onboarding.
 
+### Brand: icon, splash, and typeface
+
+- **Launcher icon.** An adaptive icon drawn from the onboarding mark (`StreamlyLogo`): the frosted
+  rounded tile and play glyph on the indigo brand gradient, with a monochrome layer for Android 13+
+  themed icons and rendered PNGs for API 24–25.
+- **Splash.** `androidx.core:core-splashscreen` shows the mark on indigo through the Android 12
+  splash API, which the library backports to API 24 (checked on Android 14 and 16; the API 24–30
+  path is not device-tested). `MainActivity` keeps it on screen while `AppViewModel` is still
+  reading the stored session, so the first screen drawn is already the right one (Home or
+  onboarding), with no placeholder frame. It shows when the app starts, including a restore after
+  process death, but not on rotation or when switching back to a running app.
+- **Typeface.** Baloo Da 2, the font the mockups use, applied once to the whole Material 3 type
+  scale in `StreamlyTheme`, so no screen sets a font. Google Fonts ships it only as a variable
+  font, whose weights need API 26, so the app bundles four static instances (Regular, Medium,
+  SemiBold, Bold) cut from it with fontTools, with the full glyph set including Bengali. They are
+  1.1 MB on disk and add about 0.5 MB to the APK. Its licence (SIL OFL 1.1) is in
+  [`core/designsystem/licenses/`](core/designsystem/licenses).
+
 ### Tech stack
 
 | Concern | Library |
@@ -365,10 +384,8 @@ The project is built with Claude Code as the agent throughout.
 
 ### Known polish gaps
 
-- The launch splash is the default Android one rather than a branded splash.
 - Status bar icons are always light, which suits the current brand-colored headers. Screens with
   light headers will need per-screen system bar styling.
-- Text uses the default font instead of the rounded display font in the mockups.
 - The mockup's two header icons are not shown: search does not exist, and Profile is a tab.
 - Downloads of an account that never signs in again stay on the device; nothing reclaims them.
 - The download notification shows the title of whatever is downloading, whichever account is

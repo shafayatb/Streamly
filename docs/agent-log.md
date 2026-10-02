@@ -322,3 +322,83 @@ itself.
   - A corrupted ownership file would hand every download to the first account seen; this is in the
     README's known gaps. Nine other minor findings were deferred to the release task.
 - **Commits:** `1b3e996`, `0ee48d2`, `f5dcf93`, `6c6298c`, `a57e1c6`, `cf78b07`, and this docs commit.
+
+### 8. Polish: launcher icon, splash, and typeface — October 2
+
+- **Branch:** `feature/polish`.
+- **Plan:** [`docs/plans/2026-10-02-polish.md`](plans/2026-10-02-polish.md), the agreed design and
+  the implementation plan in one file.
+- **Prompt:** the handoff asked for the October 4 release gate on `release/1.0`. In brainstorming
+  the reviewer re-sequenced the work: **features first, one release**. Three feature tasks come
+  before the gate (this polish task, then Watch history, then Settings), and the release fixes
+  were narrowed to the user-visible download minors. `release/1.0` was created and left at
+  `develop`'s head.
+- **How the agent worked:** the same workflow as tasks 6 and 7.
+  - **Brainstorming.** The agent answered a Gitflow question (a release branch is cut from
+    `develop`, then merged into `main` and back into `develop`; `develop` never merges into `main`
+    directly), and explained that the brief only asks for *links* to History and Settings before
+    the reviewer chose to build them. For polish it read the brief's PDF: `pdffonts` showed the
+    mockups' typeface is **Baloo Da 2**, used for body text too. It also found that the launcher
+    icon was still the Android Studio template robot, and the reviewer added a branded icon to the
+    scope. The design was approved in two sections.
+  - **Plan.** Five tasks with a failing device test first, a Review Focus list (Baloo's tall line
+    metrics, truncation at 360 dp, the splash never hanging or re-appearing, themed and legacy
+    icons, existing tests), and a five-commit sequence. The reviewer chose inline execution with
+    one fresh review at the end.
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** The typography test
+    failed for the right reason (`No bundled font family: {displayLarge=FontFamily.SansSerif, …}`)
+    before the fonts existed, and passed after. A ledger recorded every step and ruling.
+- **Decisions:**
+  - **Static font instances.** Google Fonts ships Baloo Da 2 only as a variable font, whose weights
+    need API 26 (`minSdk` is 24). The agent cut Regular, Medium, SemiBold, and Bold with fontTools,
+    after checking that the OFL declares no Reserved Font Name. The full glyph set, including
+    Bengali, stays; the APK grows by about 0.5 MB.
+  - **One place for the font.** Material 3's `Typography(fontFamily = …)` constructor applies the
+    family to every style, so no screen changed.
+  - **The splash waits for the session.** `MainActivity` takes `AppViewModel` from Koin and keeps
+    the splash while its state is `Loading`, so the first frame is already Home or onboarding.
+  - **The icon is the onboarding mark** (the reviewer's choice): `StreamlyLogo`'s tile and glyph on
+    the brand gradient, a monochrome cut-out for themed icons, and PNGs rendered with Pillow.
+  - **A benchmark build at the release gate** (the reviewer's suggestion during verification): a
+    non-debuggable, R8-minified, debug-signed build type for timing and the demo, added on
+    `release/1.0` where the APK and demo are chosen.
+- **Problems found:**
+  - **A stale resource merge.** With `minSdk` 24, AGP strips `-v24`, so the template's
+    `drawable-v24/ic_launcher_foreground.xml` and the new `drawable/` one compile to the same
+    output. The incremental merge added the new file and then deleted the old one's output, and the
+    build cache stored the result. `mergeDebugResources --rerun` fixed it.
+  - **The A04's 6-second cold start.** Holding the splash makes `am start -W` report about 5.9 s on
+    the Galaxy A04, so the agent built `develop` in a scratch worktree and compared recordings: tap
+    to Home took about 6.4 s before (4.4 s of the system's robot splash, then the plain gradient) and
+    about 6.0 s after. The time is the debug build's process start, not the session read.
+- **Verification:**
+  - **Tests.** `./gradlew check` green: 209 host tests (domain 30, data 28, shared 124, media 27),
+    lint 0 errors and 4 warnings (down from 7: the `drawable-v24` and two monochrome-icon warnings
+    are gone). `:shared:connectedAndroidDeviceTest` on the emulator: 131 tests, 0 failures,
+    including the 7 Compose device tests (5 before, plus the 2 typography tests).
+  - **Cold start**, recorded with `screenrecord` and read frame by frame. Emulator signed in: the
+    splash for about 2.2 s, then Home, with no onboarding or blank frame. Signed out: the splash,
+    then onboarding. Rotation, a dark/light switch, and Home-and-return never show it again.
+    Process death (`am kill` while backgrounded on the Player, then Recents): a new process, the
+    splash, then the same Player.
+  - **Icon.** The emulator drawer and home screen, the A04 (One UI's squircle mask), and Android 16
+    themed icons (the tile with the glyph cut out), switched back off afterwards.
+  - **Font at 360 dp** on the A04 in dark and light: Home (chips, cards, tab bar), the Player
+    ("Downloaded" fits, up next, the LIVE badge, controls, the offline error), Downloads, the
+    remove dialog, Shorts, Profile, the sign-out dialog, onboarding, and email sign-in (error,
+    typed text, floating label), plus a snackbar. No clipping, labels centred, no new ellipsis.
+    Emulator phone landscape and a 2400x1800 tablet.
+  - **Regression.** Shorts kept 2 `ExoPlayerImpl … Init` after six swipes; a long-form video
+    played at 1280x720 with one started AudioTrack.
+  - **Unverified:** the API 24–25 PNG icons and the splash backport on API 24–30 (only API 34 and
+    36 images are installed).
+- **Fresh review of the whole branch** (one reviewer subagent on Fable 5.1). No critical issues; it
+  confirmed the font instances, the OFL position, the splash wiring (it cannot hang, because the
+  session flow maps errors to "signed out"), and the icon geometry. One Important finding: the
+  plan's process-death check had no recorded result. The agent ran it (above) and also closed the
+  themed-icon check. It corrected two overstated README claims (the API 24–30 splash, which is
+  untested, and the font size, which is 0.5 MB in the APK, not 1.1 MB). Four minor findings were
+  deferred: the typography test pins the weights but not the font files; very large font scales
+  could let the tallest accented capitals draw outside the tightest styles; `App`'s unused
+  `koinViewModel()` default; and the light-only post-splash window theme, which predates this task.
+- **Commits:** `ab20b55`, `d68b57b`, `a30e051`, `31cb319`, and this docs commit.
