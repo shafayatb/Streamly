@@ -4,11 +4,13 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** onboarding, a persisted session, the home feed, and the normal-video player are
-> done. Returning users go straight to Home, which loads the video catalog with category chips,
-> an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS with
-> Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
-> playback errors with retry, and an up-next list. Shorts are the next task.
+> **Status:** onboarding, a persisted session, the home feed, the normal-video player, and Shorts
+> are done. Returning users go straight to Home, which loads the video catalog with category
+> chips, an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS
+> with Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
+> playback errors with retry, and an up-next list. A bottom bar (a rail on wide windows) switches
+> between Home and Shorts, a full-screen vertical pager of HLS shorts that autoplays only the
+> visible one from a pool of at most two players. Downloads are the next task.
 
 ## Setup
 
@@ -44,7 +46,7 @@ graph TD
     app --> media[":core:media"]
     shared --> domain[":domain"]
     shared --> designsystem[":core:designsystem"]
-    shared -. "androidMain only<br/>(video surface)" .-> media
+    shared -. "androidMain only<br/>(video surfaces)" .-> media
     data --> domain
     media --> domain
 ```
@@ -56,7 +58,7 @@ graph TD
 | `:domain` | Pure Kotlin models, repository and player contracts, and use cases. Its only dependency is `kotlinx-coroutines-core`. |
 | `:data` | Implements the network and session contracts: Ktor clients, DTOs and mappers, and DataStore session storage. |
 | `:core:designsystem` | Theme and reusable Compose components. |
-| `:core:media` | All Media3 code: the shared normal-video player, the Shorts player pool, `DownloadManager`, and the single download cache that offline playback also reads from. It exposes a Compose video surface to `:shared/androidMain`. |
+| `:core:media` | All Media3 code: the shared normal-video player, the Shorts player pool, `DownloadManager`, and the single download cache that offline playback also reads from. It exposes Compose video surfaces to `:shared/androidMain`. |
 
 Dependency rules:
 
@@ -79,7 +81,10 @@ reaches the domain or common UI.
 The ViewModel and the composition never own the player, so a rotation cannot recreate it. Every
 player screen reuses the same instance, whether the video was opened from Home or from up next.
 The `ExoPlayer` inside is built on first use and released only when Koin closes (`onClose`).
-It holds the application context only, so it cannot leak an `Activity`.
+It holds the application context only. `stop()` also detaches the video surface: media3-ui-compose
+detaches its `SurfaceView` only while the screen is still composed, so a popped player screen left
+its surface on this app-wide player, and the next rotation leaked the destroyed `Activity` through
+it. A heap dump analysed with LeakCanary's `shark-cli` showed the path.
 
 **Lifecycle.** `PlayerViewModel` drives the player through intents. The screen reports
 visibility with `ScreenShown` and `ScreenHidden`:
@@ -88,7 +93,7 @@ visibility with `ScreenShown` and `ScreenHidden`:
 |---|---|
 | The app goes to the background | The video pauses. On return it resumes only if it was playing and the player screen is still showing. A video that finishes loading in the background waits until the screen is shown. |
 | Rotation, or a dark-mode switch | Nothing. The screen ignores stop events while the activity is changing configuration. Only the video surface detaches and reattaches; playback continues without rebuffering. |
-| Back, or the on-screen back arrow | Nav3 drops the popped entry's lifecycle to `CREATED` at once, so audio pauses before the exit animation (about 40–110 ms on the test devices). When the entry's ViewModel clears, it calls `stop()`, which unloads the video and frees the decoders. The player instance stays. |
+| Back, or the on-screen back arrow | Nav3 drops the popped entry's lifecycle to `CREATED` at once, so audio pauses before the exit animation (about 40–110 ms on the test devices). When the entry's ViewModel clears, it calls `stop()`, which unloads the video, frees the decoders, and detaches the surface. The player instance stays. |
 | Up next | The current video stops at once, and the new route replaces the old one, so Back returns to Home. |
 | Another screen covers the player (no such destination exists yet) | The video pauses, and resumes if the player screen returns. |
 
@@ -110,6 +115,72 @@ not write, because a cache that never evicts would otherwise grow with everythin
 **Adaptive layout.** A phone in portrait shows the 16:9 player above the details and up next.
 At expanded widths, up next moves to a side column. A short window, such as a phone in landscape,
 shows the video full screen in immersive mode.
+
+### Shorts and the player pool
+
+Shorts play from their own pool, separate from the long-form player. The domain declares the
+contract, `ShortsPlayerPool`, with no Media3 types. `acquire()` returns a `ShortsPlayerLease`:
+`show(visible, upcoming, playWhenReady)`, `play`, `pause`, `setMuted`, `retry`, and `close`. It
+exposes a `StateFlow<ShortsPoolState>` holding the visible short's id, the `PlaybackState` of each
+short that has a player, and the shared mute.
+
+**Policy: at most two players.**
+
+| Page | Player |
+|---|---|
+| Visible | Plays, looping (`REPEAT_MODE_ONE`). |
+| The next page | Prepared and paused at its start, so a swipe forward starts at once and its first frame is already on screen. |
+| Every other page | None. |
+
+Only a *settled* page drives the pool, so a fling across several pages loads none of the pages it
+passes. Players are recycled, not created: when the window moves, a player that already holds
+the visible or next short keeps it (swiping forward plays the prepared player; swiping back keeps
+the short you came from as the paused, rewound neighbour). A player whose short leaves the window
+loads the newly needed one. On the last page the spare player is stopped, which frees its
+decoders. The short that was playing is paused before another starts, and each player takes
+audio focus when it plays, so two shorts, or a short and a long-form video, never sound together.
+
+The policy lives in `SlotPool`, which is independent of Media3 and is covered by host tests with
+fake slots: never more than two players, the visible one plays, the next one is prepared, far
+pages hold none, recycling across fast swipes and jumps, never two playing at once, shared mute,
+and release. `ExoShortsPlayerPool` backs each slot with an `ExoPlayer` built by the same factory
+as the long-form player (HLS through the one `MediaCache` data source, audio focus, becoming-noisy).
+
+**Scope.** The pool object is an application singleton in `mediaModule`, like the cache it reads
+through, so only one pool can ever hold players and the composition never owns one. Its players
+are screen-scoped. `ShortsViewModel` acquires the lease when it is created; the pool builds the
+two `ExoPlayer`s on the first settled page and releases them when the ViewModel clears and closes
+the lease. A lease that has been replaced is ignored, so a Shorts screen that is still leaving
+can never pause or release the players of a newer one. Debug builds log pool events under the
+logcat tag `StreamlyShorts`, including `Created pool player <id>` next to Media3's
+`ExoPlayerImpl … Init <id>`.
+
+**Lifecycle.** The Shorts screen reuses the player screen's `ScreenVisibilityEffect`:
+
+| What happens | Result |
+|---|---|
+| The app goes to the background | The visible short pauses, and resumes on return only if it was playing. A short the user paused stays paused. |
+| Rotation, or a dark-mode switch | Nothing. Only the surfaces detach and reattach; no player is created, paused, or reloaded. |
+| Back, or the Home tab | The short pauses at once (Nav3 drops the popped entry to `CREATED`), and both players are released when the entry's ViewModel clears, about 0.8 s later, after the exit animation. |
+| A tap on the video | Pause or resume, with a play indicator while paused. Taps are ignored while the short shows a playback error, so a stray tap cannot leave it paused once "Try again" recovers it. |
+
+`ShortSurface` follows the long-form surface's rule: it attaches only while a pool player holds
+its short, so a page whose player was recycled never shows another short's picture. Phones fill
+the screen with the short (cropped). Medium and wider windows show it at 9:16, centered with black
+bars, with the like, comment, and share actions beside it rather than over it.
+
+### Navigation shell
+
+`AppShell` wraps the Nav3 `NavDisplay` with the tab chrome: a bottom `NavigationBar` on compact
+and medium widths and a `NavigationRail` on expanded widths, shown only while a tab is on top.
+The player and other pushed destinations take the whole window. `NavDisplay` stays at the same
+place in the composition whether or not the chrome shows, so no back-stack state is lost.
+
+Home is always the root of the back stack, and every other tab sits on top of it
+(`selectTopLevel`). Back from Shorts and the Home tab therefore both pop Shorts, which is what
+releases its players; returning to Shorts starts a fresh screen. Home's entry stays in the back
+stack the whole time, so its ViewModel and its saved grid position survive switching tabs. The
+chrome is dark while Shorts is selected, because Shorts always uses the dark color scheme.
 
 ### Tech stack
 
@@ -160,11 +231,22 @@ The project is built with Claude Code as the agent throughout.
 - **Demo metadata over real streams.** Titles, channels, view counts, and dates are made up. Every
   video is a public HLS test stream (Mux, Apple, Shaka, Unified Streaming), including two live
   streams, and every thumbnail is a public image; all were checked to respond when added.
+- **Shorts streams.** `GET shorts` is served by the same mock engine from `BundledShorts`. The
+  eight shorts are genuinely vertical (720x1280, H.264/AAC, 8 s) public HLS clips from
+  TheWidlarzGroup's open-source
+  [react-native-video-feed](https://github.com/TheWidlarzGroup/react-native-video-feed) demo,
+  hosted on its Netlify deploy, and they end on that studio's logo. Two trade-offs: each has a
+  single rendition, so adaptive bitrate is demonstrated by the long-form player rather than
+  Shorts, and a third-party deploy could disappear. Every other public "portrait HLS" list found
+  had dead links. Swapping in other streams is a JSON-only change; a landscape stream would be
+  cropped to fill the page.
 - **Static chips.** All, Music, and Live filter the loaded feed locally rather than querying
   the API. Live matches streams with no fixed duration, so a live music stream appears under both.
 - **Player actions are stubs.** Like and Subscribe toggle only for the current screen and are not
   saved. Share shows a "coming soon" message. Download is shown disabled until the downloads
   task; it never shows fake progress.
+- **Shorts actions are stubs.** Like toggles and counts the user's like for as long as the Shorts
+  screen lasts. Comment and Share show "coming soon" messages.
 - **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
   segments load through Media3's `DefaultHttpDataSource`. Media3 has no Ktor data source, and
   writing one would add risk to the most heavily graded area without changing behavior.
@@ -176,7 +258,7 @@ The project is built with Claude Code as the agent throughout.
   light headers will need per-screen system bar styling.
 - Text uses the default font instead of the rounded display font in the mockups.
 - The mockup's two header icons are not shown, because search and the profile entry do not exist
-  yet. Profile arrives with the navigation shell.
+  yet. Profile and Downloads join the navigation shell in later tasks.
 - A thumbnail that failed to load while offline keeps its placeholder until its card scrolls out
   and back, or the screen is reopened; Coil does not retry when the connection returns.
 - The feed's error state is covered by unit tests but cannot be triggered on a device, because
@@ -188,3 +270,8 @@ The project is built with Claude Code as the agent throughout.
 - Up next does not autoplay when a video ends; the replay button restarts it.
 - The live test streams sometimes rebuffer on the emulator. The buffering indicator shows while
   they do.
+- Shorts have no poster image, so a short that has not buffered yet shows black with a spinner.
+  The next short is prepared ahead, so this is visible mainly on the first page and after a jump.
+- Shorts has no progress bar and does not remember its page after you leave it; it starts from the
+  first short each time.
+- Selecting the Shorts tab again does not scroll back to the first short.
