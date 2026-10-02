@@ -28,6 +28,18 @@
     <string name="home_refresh">Refresh</string>
     <string name="home_error_title">Couldn’t load your feed</string>
 
+    <string name="shorts_title">Shorts</string>
+    <string name="shorts_loading">Loading shorts</string>
+    <string name="shorts_error_title">Couldn’t load Shorts</string>
+    <string name="shorts_empty_title">No shorts yet</string>
+    <string name="shorts_empty_body">New shorts will show up here.</string>
+    <string name="shorts_handle">@%1$s</string>
+    <string name="shorts_like">Like</string>
+    <string name="shorts_liked">Liked</string>
+    <string name="shorts_comment">Comments</string>
+    <string name="shorts_comments_unavailable">Comments are coming soon.</string>
+    <string name="shorts_paused">Paused</string>
+
     <string name="video_live">LIVE</string>
     <string name="video_card_metadata">%1$s · %2$s · %3$s</string>
     <string name="age_just_now">Just now</string>

@@ -1,5 +1,6 @@
 package com.shafayatb.streamly.testing
 
+import com.shafayatb.streamly.domain.shorts.ShortVideo
 import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.domain.video.Category
@@ -71,4 +72,19 @@ fun testVideo(
     viewCount = viewCount,
     publishedAt = publishedAt,
     category = category,
+)
+
+fun testShort(
+    id: String,
+    title: String = "Short $id",
+    channelId: String = "channel",
+    likeCount: Long = 1_200,
+    commentCount: Long = 30,
+): ShortVideo = ShortVideo(
+    id = id,
+    title = title,
+    channel = Channel(id = channelId, name = "Channel"),
+    hlsUrl = "https://example.com/$id.m3u8",
+    likeCount = likeCount,
+    commentCount = commentCount,
 )
