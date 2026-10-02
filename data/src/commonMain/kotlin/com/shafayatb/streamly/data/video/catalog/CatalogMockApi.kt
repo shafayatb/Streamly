@@ -30,9 +30,11 @@ import kotlinx.coroutines.delay
  * - `GET videos/{id}`: one video, or 404.
  * - `GET videos/{id}/up-next`: the same category first, then the rest, newest first; 404 for an
  *   unknown id.
+ * - `GET shorts`: every short, in pager order.
  */
 internal class CatalogMockApi(
     catalogJson: String = BundledCatalog.JSON,
+    private val shortsJson: String = BundledShorts.JSON,
     private val latency: Duration = 600.milliseconds,
 ) {
     private val videos: List<VideoDto> by lazy {
@@ -48,8 +50,9 @@ internal class CatalogMockApi(
     private fun MockRequestHandleScope.handle(request: HttpRequestData): HttpResponseData {
         if (request.method != HttpMethod.Get) return respondError(HttpStatusCode.MethodNotAllowed)
 
-        val path = request.url.segments.dropWhile { it != "videos" }
+        val path = request.url.segments.dropWhile { it != "videos" && it != "shorts" }
         return when {
+            path == listOf("shorts") -> respondJson(shortsJson)
             path == listOf("videos") -> respondJson(VideoListDto(videos))
             path.size == 2 -> findVideo(path[1])
                 ?.let { respondJson(it) }
