@@ -14,8 +14,8 @@ import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.media3.exoplayer.scheduler.Requirements
 import com.shafayatb.streamly.core.media.cache.MediaCache
+import com.shafayatb.streamly.domain.download.DeviceDownloads
 import com.shafayatb.streamly.domain.download.DownloadError
-import com.shafayatb.streamly.domain.download.DownloadRepository
 import com.shafayatb.streamly.domain.download.DownloadStatus
 import com.shafayatb.streamly.domain.download.StorageUsage
 import com.shafayatb.streamly.domain.download.VideoDownload
@@ -66,7 +66,7 @@ internal class MediaDownloads(
     context: Context,
     mediaCache: MediaCache,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : DownloadRepository, OfflineMediaItems {
+) : DeviceDownloads, OfflineMediaItems {
 
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
