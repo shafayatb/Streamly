@@ -7,7 +7,15 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import org.jetbrains.compose.resources.Font
+import streamly.core.designsystem.generated.resources.Res
+import streamly.core.designsystem.generated.resources.baloo_da_2_bold
+import streamly.core.designsystem.generated.resources.baloo_da_2_medium
+import streamly.core.designsystem.generated.resources.baloo_da_2_regular
+import streamly.core.designsystem.generated.resources.baloo_da_2_semibold
 
 private val LightColors: ColorScheme = lightColorScheme(
     primary = StreamlyPalette.Indigo700,
@@ -45,26 +53,38 @@ private val DarkColors: ColorScheme = darkColorScheme(
     onError = StreamlyPalette.Indigo950,
 )
 
-private val StreamlyTypography: Typography = Typography().run {
-    copy(
-        displaySmall = displaySmall.copy(fontWeight = FontWeight.Bold),
-        headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
-        headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Bold),
-        headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
-        titleLarge = titleLarge.copy(fontWeight = FontWeight.Bold),
-        titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
-    )
-}
+// Baloo Da 2, the mockups' typeface. Static instances: variable-font weights need API 26.
+@Composable
+private fun balooDa2(): FontFamily = FontFamily(
+    Font(Res.font.baloo_da_2_regular, FontWeight.Normal),
+    Font(Res.font.baloo_da_2_medium, FontWeight.Medium),
+    Font(Res.font.baloo_da_2_semibold, FontWeight.SemiBold),
+    Font(Res.font.baloo_da_2_bold, FontWeight.Bold),
+)
+
+private fun streamlyTypography(fontFamily: FontFamily): Typography =
+    Typography(fontFamily = fontFamily).run {
+        copy(
+            displaySmall = displaySmall.copy(fontWeight = FontWeight.Bold),
+            headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
+            headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Bold),
+            headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
+            titleLarge = titleLarge.copy(fontWeight = FontWeight.Bold),
+            titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        )
+    }
 
 @Composable
 public fun StreamlyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    val fontFamily = balooDa2()
+    val typography = remember(fontFamily) { streamlyTypography(fontFamily) }
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = StreamlyTypography,
+        typography = typography,
         content = content,
     )
 }

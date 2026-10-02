@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- StreamlyPalette.Indigo900 / Indigo500 (the BrandBackground gradient). -->
+    <color name="streamly_indigo_900">#FF1C2378</color>
+    <color name="streamly_indigo_500">#FF3F51D6</color>
+</resources>
