@@ -48,7 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,6 +62,8 @@ import com.shafayatb.streamly.core.presentation.ObserveAsEvents
 import com.shafayatb.streamly.core.presentation.ScreenVisibilityEffect
 import com.shafayatb.streamly.core.presentation.UiText
 import com.shafayatb.streamly.core.presentation.asString
+import com.shafayatb.streamly.core.presentation.rememberNotificationPermissionRequest
+import com.shafayatb.streamly.downloads.RemoveDownloadDialog
 import com.shafayatb.streamly.core.presentation.resolve
 import com.shafayatb.streamly.home.VideoCard
 import com.shafayatb.streamly.home.VideoCardUi
@@ -75,6 +77,14 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.player_downloaded
+import streamly.shared.generated.resources.player_download_waiting
+import streamly.shared.generated.resources.player_download_removing
+import streamly.shared.generated.resources.player_download_retry
+import streamly.shared.generated.resources.player_download_queued
+import streamly.shared.generated.resources.ic_replay
+import streamly.shared.generated.resources.ic_download_done
+import streamly.shared.generated.resources.cd_cancel_download
 import streamly.shared.generated.resources.action_retry
 import streamly.shared.generated.resources.age_days
 import streamly.shared.generated.resources.error_network_no_internet
@@ -82,7 +92,6 @@ import streamly.shared.generated.resources.ic_download
 import streamly.shared.generated.resources.ic_share
 import streamly.shared.generated.resources.ic_thumb_up
 import streamly.shared.generated.resources.player_download
-import streamly.shared.generated.resources.player_download_unavailable
 import streamly.shared.generated.resources.player_like
 import streamly.shared.generated.resources.player_liked
 import streamly.shared.generated.resources.player_metadata
@@ -120,7 +129,15 @@ fun PlayerRoot(
         onHidden = { viewModel.onIntent(PlayerIntent.ScreenHidden) },
     )
 
-    PlayerScreen(state = state, onIntent = viewModel::onIntent, snackbarHostState = snackbarHostState)
+    val requestNotificationPermission = rememberNotificationPermissionRequest()
+    PlayerScreen(
+        state = state,
+        onIntent = { intent ->
+            if (intent == PlayerIntent.Download) requestNotificationPermission()
+            viewModel.onIntent(intent)
+        },
+        snackbarHostState = snackbarHostState,
+    )
 }
 
 private enum class PlayerLayout {
@@ -202,6 +219,14 @@ fun PlayerScreen(
                 }
             }
         }
+        val loaded = state.content as? PlayerContent.Loaded
+        if (state.isRemoveDownloadDialogShown && loaded != null) {
+            RemoveDownloadDialog(
+                title = loaded.video.title,
+                onConfirm = { onIntent(PlayerIntent.ConfirmRemoveDownload) },
+                onDismiss = { onIntent(PlayerIntent.DismissRemoveDownload) },
+            )
+        }
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
@@ -239,6 +264,7 @@ private fun LazyListScope.videoDetails(state: PlayerState, onIntent: (PlayerInte
                 video = content.video,
                 isLiked = state.isLiked,
                 isSubscribed = state.isSubscribed,
+                download = state.download,
                 onIntent = onIntent,
             )
             is PlayerContent.Error -> InlineMessage(
@@ -255,6 +281,7 @@ private fun VideoDetails(
     video: VideoDetailsUi,
     isLiked: Boolean,
     isSubscribed: Boolean,
+    download: DownloadActionUi,
     onIntent: (PlayerIntent) -> Unit,
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
@@ -306,22 +333,93 @@ private fun VideoDetails(
                 label = stringResource(Res.string.player_share),
                 onClick = { onIntent(PlayerIntent.Share) },
             )
-            // Downloads arrive in the next task. Until then the action is visibly unavailable
-            // rather than wired to anything that could pretend to download.
-            val unavailable = stringResource(Res.string.player_download_unavailable)
-            ActionButton(
-                icon = Res.drawable.ic_download,
-                label = stringResource(Res.string.player_download),
-                enabled = false,
-                onClick = {},
-                modifier = Modifier.semantics { stateDescription = unavailable },
-            )
+            DownloadButton(action = download, onIntent = onIntent)
         }
         Spacer(Modifier.height(16.dp))
         Text(
             text = video.description,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun RowScope.DownloadButton(action: DownloadActionUi, onIntent: (PlayerIntent) -> Unit) {
+    if (action == DownloadActionUi.Hidden) return
+    val inProgress = action is DownloadActionUi.Downloading ||
+        action == DownloadActionUi.Queued ||
+        action == DownloadActionUi.WaitingForNetwork
+    val cancelDescription = stringResource(Res.string.cd_cancel_download)
+    FilledTonalButton(
+        onClick = {
+            onIntent(
+                when (action) {
+                    DownloadActionUi.Downloaded -> PlayerIntent.RequestRemoveDownload
+                    DownloadActionUi.Idle, DownloadActionUi.Failed -> PlayerIntent.Download
+                    else -> PlayerIntent.CancelDownload
+                },
+            )
+        },
+        enabled = action != DownloadActionUi.Removing,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = if (action == DownloadActionUi.Downloaded) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+            contentColor = if (action == DownloadActionUi.Downloaded) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        ),
+        // A little wider than Like and Share, so "Downloaded" fits on a 360 dp phone.
+        modifier = Modifier
+            .weight(1.3f)
+            .semantics { if (inProgress) onClick(label = cancelDescription, action = null) },
+    ) {
+        when (action) {
+            is DownloadActionUi.Downloading -> {
+                val percent = action.percent
+                if (percent == null) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                } else {
+                    CircularProgressIndicator(
+                        progress = { percent / 100f },
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            DownloadActionUi.Queued, DownloadActionUi.WaitingForNetwork, DownloadActionUi.Removing ->
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            else -> Icon(
+                painter = painterResource(
+                    when (action) {
+                        DownloadActionUi.Downloaded -> Res.drawable.ic_download_done
+                        DownloadActionUi.Failed -> Res.drawable.ic_replay
+                        else -> Res.drawable.ic_download
+                    },
+                ),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = when (action) {
+                is DownloadActionUi.Downloading -> action.percent?.let { "$it%" } ?: stringResource(Res.string.player_download)
+                DownloadActionUi.Queued -> stringResource(Res.string.player_download_queued)
+                DownloadActionUi.WaitingForNetwork -> stringResource(Res.string.player_download_waiting)
+                DownloadActionUi.Downloaded -> stringResource(Res.string.player_downloaded)
+                DownloadActionUi.Failed -> stringResource(Res.string.player_download_retry)
+                DownloadActionUi.Removing -> stringResource(Res.string.player_download_removing)
+                else -> stringResource(Res.string.player_download)
+            },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

@@ -34,6 +34,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(project(":core:media"))
+            implementation(libs.androidx.activity.compose)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
@@ -67,6 +68,8 @@ kotlin {
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
             implementation(libs.androidx.testExt.junit)
+            // compose-ui-test pulls an older Espresso that crashes on API 36 (InputManager.getInstance).
+            implementation(libs.androidx.espresso.core)
             implementation(libs.androidx.compose.uiTestJunit4)
             implementation(libs.androidx.compose.uiTestManifest)
         }

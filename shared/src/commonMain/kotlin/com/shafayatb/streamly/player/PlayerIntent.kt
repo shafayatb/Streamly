@@ -21,6 +21,15 @@ sealed interface PlayerIntent {
     data object ToggleSubscribe : PlayerIntent
     data object Share : PlayerIntent
 
+    /** Starts the download, or retries one that failed. */
+    data object Download : PlayerIntent
+
+    /** Stops an unfinished download and deletes what it saved. */
+    data object CancelDownload : PlayerIntent
+    data object RequestRemoveDownload : PlayerIntent
+    data object ConfirmRemoveDownload : PlayerIntent
+    data object DismissRemoveDownload : PlayerIntent
+
     /** The screen became visible: started, back from the background, or returned to. */
     data object ScreenShown : PlayerIntent
 

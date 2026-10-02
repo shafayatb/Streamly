@@ -21,6 +21,12 @@ val presentationModule: Module = module {
     viewModelOf(::HomeViewModel)
     viewModelOf(::ShortsViewModel)
     viewModel { params ->
-        PlayerViewModel(videoId = params.get(), videoRepository = get(), videoPlayer = get(), clock = get())
+        PlayerViewModel(
+            videoId = params.get(),
+            videoRepository = get(),
+            videoPlayer = get(),
+            downloadRepository = get(),
+            clock = get(),
+        )
     }
 }

@@ -13,6 +13,8 @@ data class PlayerState(
     val upNext: UpNextContent = UpNextContent.Loading,
     val isLiked: Boolean = false,
     val isSubscribed: Boolean = false,
+    val download: DownloadActionUi = DownloadActionUi.Hidden,
+    val isRemoveDownloadDialogShown: Boolean = false,
 )
 
 @Immutable
