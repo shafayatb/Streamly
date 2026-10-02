@@ -48,6 +48,13 @@ October 4 until told otherwise.
 
 ## Always-on delivery gates
 
+- **Plan before code, log after.** For every main feature task, even when `FRESH_PROMPT.md`
+  reads like a full spec: settle open design questions with the user before writing code
+  (superpowers `brainstorming`), save the agreed plan as `docs/plans/YYYY-MM-DD-<task>.md` and
+  show it before implementing (`writing-plans`), and build test-first
+  (`test-driven-development`). Before staging, append the task's entry to `docs/agent-log.md`:
+  prompt, how you worked, decisions and why, problems found, verification evidence, and commits.
+  Never decide a user-visible trade-off silently.
 - After every implementation task, install and exercise the changed journey on an Android device
   or emulator. Run the build and relevant tests. Record the device, steps, and result. If a check
   cannot run, report it as unverified; do not claim that task is complete.
