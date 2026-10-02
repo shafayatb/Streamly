@@ -214,6 +214,12 @@ The project is built with Claude Code as the agent throughout.
   `Co-Authored-By` trailer.
 - **Fresh context per task.** At each task boundary the agent writes a self-contained handoff
   prompt for the next task, which starts in a new chat.
+- **Plan before code.** From the downloads task on, the agent settles open design questions with
+  me first (superpowers *brainstorming*), saves a dated plan in [`docs/plans/`](docs/plans), and
+  builds test-first.
+- **Agent log.** [`docs/agent-log.md`](docs/agent-log.md) records every task: the prompt, the
+  agent's decisions and reasoning, the problems it found, the verification evidence, and the
+  commits.
 
 ## Shortcuts
 
