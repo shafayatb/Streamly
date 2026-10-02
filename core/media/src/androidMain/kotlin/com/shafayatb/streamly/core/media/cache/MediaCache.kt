@@ -3,6 +3,7 @@ package com.shafayatb.streamly.core.media.cache
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.database.DatabaseProvider
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -14,7 +15,7 @@ import androidx.media3.datasource.cache.SimpleCache
 import java.io.File
 
 /**
- * The app's only Media3 cache. Downloads will write into it, and playback reads from it before
+ * The app's only Media3 cache. Downloads write into it, and playback reads from it before
  * going to the network, so a downloaded video plays offline through the same player.
  *
  * It never evicts, because evicting would silently delete downloads. That is also why playback
@@ -25,11 +26,14 @@ internal class MediaCache(context: Context) {
 
     private val appContext = context.applicationContext
 
+    /** Shared with `DownloadManager`, whose download index lives in the same database. */
+    val databaseProvider: DatabaseProvider = StandaloneDatabaseProvider(appContext)
+
     // SimpleCache locks its folder, so the process must create exactly one, for its whole life.
     val cache: Cache = SimpleCache(
         File(appContext.filesDir, "media-cache"),
         NoOpCacheEvictor(),
-        StandaloneDatabaseProvider(appContext),
+        databaseProvider,
     )
 
     val upstreamDataSourceFactory: DataSource.Factory = DefaultDataSource.Factory(
