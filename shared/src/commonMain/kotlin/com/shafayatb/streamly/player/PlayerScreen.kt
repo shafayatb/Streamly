@@ -40,11 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,14 +53,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.shafayatb.streamly.core.designsystem.components.ChannelAvatar
 import com.shafayatb.streamly.core.designsystem.theme.StreamlyTheme
+import com.shafayatb.streamly.core.presentation.ImmersiveModeEffect
 import com.shafayatb.streamly.core.presentation.ObserveAsEvents
+import com.shafayatb.streamly.core.presentation.ScreenVisibilityEffect
 import com.shafayatb.streamly.core.presentation.UiText
 import com.shafayatb.streamly.core.presentation.asString
 import com.shafayatb.streamly.core.presentation.resolve
@@ -118,41 +115,12 @@ fun PlayerRoot(
         }
     }
 
-    PlayerVisibilityEffect(
+    ScreenVisibilityEffect(
         onShown = { viewModel.onIntent(PlayerIntent.ScreenShown) },
         onHidden = { viewModel.onIntent(PlayerIntent.ScreenHidden) },
     )
 
     PlayerScreen(state = state, onIntent = viewModel::onIntent, snackbarHostState = snackbarHostState)
-}
-
-/**
- * Reports when the screen is really shown or hidden: the app moving to or from the background,
- * the entry being popped or replaced (Nav3 drops a removed entry's lifecycle to CREATED at once,
- * before its exit animation), or the screen leaving the composition. A configuration change
- * recreates the activity but is neither, so rotation never pauses playback.
- */
-@Composable
-private fun PlayerVisibilityEffect(onShown: () -> Unit, onHidden: () -> Unit) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val isChangingConfigurations = rememberIsChangingConfigurations()
-    val currentOnShown by rememberUpdatedState(onShown)
-    val currentOnHidden by rememberUpdatedState(onHidden)
-
-    DisposableEffect(lifecycleOwner, isChangingConfigurations) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> currentOnShown()
-                Lifecycle.Event.ON_STOP -> if (!isChangingConfigurations()) currentOnHidden()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            if (!isChangingConfigurations()) currentOnHidden()
-        }
-    }
 }
 
 private enum class PlayerLayout {

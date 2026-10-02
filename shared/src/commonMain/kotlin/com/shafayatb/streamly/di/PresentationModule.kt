@@ -5,6 +5,7 @@ import com.shafayatb.streamly.home.HomeViewModel
 import com.shafayatb.streamly.onboarding.OnboardingViewModel
 import com.shafayatb.streamly.onboarding.email.EmailSignInViewModel
 import com.shafayatb.streamly.player.PlayerViewModel
+import com.shafayatb.streamly.shorts.ShortsViewModel
 import kotlin.time.Clock
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
@@ -18,6 +19,7 @@ val presentationModule: Module = module {
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::EmailSignInViewModel)
     viewModelOf(::HomeViewModel)
+    viewModelOf(::ShortsViewModel)
     viewModel { params ->
         PlayerViewModel(videoId = params.get(), videoRepository = get(), videoPlayer = get(), clock = get())
     }

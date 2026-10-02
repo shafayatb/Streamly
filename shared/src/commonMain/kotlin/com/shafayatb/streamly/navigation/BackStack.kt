@@ -18,3 +18,14 @@ fun <T> MutableList<T>.popIfNotRoot() {
 fun <T> MutableList<T>.replaceTop(route: T) {
     if (isEmpty()) add(route) else set(lastIndex, route)
 }
+
+/**
+ * Shows the tab [route] from the bottom bar or rail. The root (Home) stays at the bottom of the
+ * stack, so Back from any other tab returns to it, and leaving a tab removes it for good. Anything
+ * opened over the current tab is dropped; selecting the tab already on top does nothing.
+ */
+fun <T> MutableList<T>.selectTopLevel(route: T) {
+    if (lastOrNull() == route) return
+    while (size > 1) removeAt(lastIndex)
+    if (firstOrNull() != route) add(route)
+}

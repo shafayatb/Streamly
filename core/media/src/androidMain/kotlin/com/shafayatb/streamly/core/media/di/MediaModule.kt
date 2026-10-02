@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import com.shafayatb.streamly.core.media.cache.MediaCache
 import com.shafayatb.streamly.core.media.player.ExoVideoPlayer
+import com.shafayatb.streamly.core.media.shorts.ExoShortsPlayerPool
+import com.shafayatb.streamly.domain.player.ShortsPlayerPool
 import com.shafayatb.streamly.domain.player.VideoPlayer
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -22,6 +24,16 @@ public val mediaModule: Module = module {
             logEvents = androidContext().isDebuggable(),
         )
     } onClose { it?.release() } bind VideoPlayer::class
+
+    // Application-scoped like the media cache it reads through, so only one pool can ever hold
+    // players. Its players are screen-scoped: the Shorts screen's lease builds and releases them.
+    single {
+        ExoShortsPlayerPool(
+            context = androidContext(),
+            dataSourceFactory = get<MediaCache>().playbackDataSourceFactory(),
+            logEvents = androidContext().isDebuggable(),
+        )
+    } onClose { it?.release() } bind ShortsPlayerPool::class
 }
 
 private fun Context.isDebuggable(): Boolean =

@@ -1,9 +1,30 @@
 package com.shafayatb.streamly.core.media.player
 
+import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import com.shafayatb.streamly.domain.player.PlaybackError
+import com.shafayatb.streamly.domain.player.PlaybackState
 import com.shafayatb.streamly.domain.player.PlaybackStatus
+import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * A snapshot of this player for the domain. [isLive] can be known before the player has parsed the
+ * playlist, so callers pass what they know and the player's own flag is added to it.
+ */
+internal fun Player.toPlaybackState(isLive: Boolean = false): PlaybackState {
+    val live = isLive || isCurrentMediaItemLive
+    return PlaybackState(
+        videoId = currentMediaItem?.mediaId,
+        status = playbackStatusOf(playbackState),
+        playWhenReady = playWhenReady,
+        position = currentPosition.coerceAtLeast(0).milliseconds,
+        duration = duration.takeUnless { live || it == C.TIME_UNSET }?.milliseconds,
+        isLive = live,
+        isMuted = volume == 0f,
+        error = playerError?.let { playbackErrorOf(it.errorCode) },
+    )
+}
 
 internal fun playbackStatusOf(@Player.State state: Int): PlaybackStatus = when (state) {
     Player.STATE_BUFFERING -> PlaybackStatus.BUFFERING
