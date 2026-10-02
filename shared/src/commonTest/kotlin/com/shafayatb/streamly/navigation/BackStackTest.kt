@@ -76,4 +76,19 @@ class BackStackTest {
 
         assertEquals(listOf(Route.Home, Route.Shorts), backStack)
     }
+
+    @Test
+    fun signingOutFromProfileLeavesOnlyOnboarding() {
+        val backStack = mutableListOf<Route>(Route.Home, Route.Profile)
+
+        backStack.resetTo(Route.Onboarding)
+
+        assertEquals(listOf<Route>(Route.Onboarding), backStack)
+    }
+
+    @Test
+    fun profileIsTheFourthTab() {
+        assertEquals(TopLevelDestination.PROFILE, TopLevelDestination.of(Route.Profile))
+        assertEquals(TopLevelDestination.PROFILE, TopLevelDestination.entries.last())
+    }
 }
