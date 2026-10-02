@@ -117,4 +117,15 @@ class VideoFormattingTest {
     private fun ageOf(elapsed: Duration): UiText = formatAge(publishedAt = now - elapsed, now = now)
 
     private fun plural(id: PluralStringResource, count: Int) = UiText.PluralResource(id, count, listOf(count))
+
+    @Test
+    fun formatsByteCountsInDecimalUnits() {
+        assertEquals("0 B", formatBytes(0))
+        assertEquals("512 B", formatBytes(512))
+        assertEquals("66 KB", formatBytes(65_900))
+        assertEquals("4.2 MB", formatBytes(4_210_000))
+        assertEquals("66 MB", formatBytes(65_800_000))
+        assertEquals("1.2 GB", formatBytes(1_234_000_000))
+        assertEquals("31.0 GB", formatBytes(31_000_000_000))
+    }
 }

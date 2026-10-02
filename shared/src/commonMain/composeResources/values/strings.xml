@@ -30,6 +30,7 @@
 
     <string name="nav_home">Home</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="nav_downloads">Downloads</string>
 
     <string name="shorts_title">Shorts</string>
     <string name="shorts_loading">Loading shorts</string>
@@ -42,6 +43,21 @@
     <string name="shorts_comment">Comments</string>
     <string name="shorts_comments_unavailable">Comments are coming soon.</string>
     <string name="shorts_paused">Paused</string>
+
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_storage">%1$s used · %2$s free</string>
+    <string name="downloads_loading">Loading downloads</string>
+    <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_empty_body">Videos you download play here, even offline.</string>
+    <string name="downloads_error_title">Couldn’t load your downloads</string>
+    <string name="downloads_queued">Queued</string>
+    <string name="downloads_waiting">Waiting for network</string>
+    <string name="downloads_progress">%1$s · %2$s</string>
+    <string name="downloads_ready">Ready to play</string>
+    <string name="downloads_detail">%1$s · %2$s</string>
+    <string name="downloads_failed">Download failed</string>
+    <string name="downloads_retry">Retry</string>
+    <string name="cd_remove_download">Remove download</string>
 
     <string name="video_live">LIVE</string>
     <string name="video_card_metadata">%1$s · %2$s · %3$s</string>
