@@ -31,4 +31,13 @@ class BackStackTest {
 
         assertEquals(listOf<Route>(Route.Home), backStack)
     }
+
+    @Test
+    fun replaceTopSwapsOnlyTheTopDestination() {
+        val backStack = mutableListOf<Route>(Route.Home, Route.Player("a"))
+
+        backStack.replaceTop(Route.Player("b"))
+
+        assertEquals(listOf(Route.Home, Route.Player("b")), backStack)
+    }
 }

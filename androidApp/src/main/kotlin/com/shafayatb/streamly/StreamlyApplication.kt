@@ -1,6 +1,7 @@
 package com.shafayatb.streamly
 
 import android.app.Application
+import com.shafayatb.streamly.core.media.di.mediaModule
 import com.shafayatb.streamly.data.di.dataModule
 import com.shafayatb.streamly.di.presentationModule
 import org.koin.android.ext.koin.androidContext
@@ -13,7 +14,7 @@ class StreamlyApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@StreamlyApplication)
-            modules(dataModule, presentationModule)
+            modules(dataModule, mediaModule, presentationModule)
         }
     }
 }

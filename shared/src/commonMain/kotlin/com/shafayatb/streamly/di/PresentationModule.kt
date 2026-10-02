@@ -18,5 +18,7 @@ val presentationModule: Module = module {
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::EmailSignInViewModel)
     viewModelOf(::HomeViewModel)
-    viewModel { params -> PlayerViewModel(videoId = params.get(), videoRepository = get()) }
+    viewModel { params ->
+        PlayerViewModel(videoId = params.get(), videoRepository = get(), videoPlayer = get(), clock = get())
+    }
 }

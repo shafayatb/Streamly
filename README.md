@@ -4,10 +4,11 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** onboarding, a persisted session, and the home feed are done. Returning users go
-> straight to Home, which loads the video catalog with category chips, an adaptive grid, and
-> loading, empty, and error states. Tapping a video opens a Player placeholder that shows its
-> details; Media3 playback is the next task.
+> **Status:** onboarding, a persisted session, the home feed, and the normal-video player are
+> done. Returning users go straight to Home, which loads the video catalog with category chips,
+> an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS with
+> Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
+> playback errors with retry, and an up-next list. Shorts are the next task.
 
 ## Setup
 
@@ -67,6 +68,49 @@ Dependency rules:
   cache. Separate caches would break offline playback.
 - Library modules use Kotlin explicit API mode, so every public declaration is a deliberate choice.
 
+### Normal-video playback
+
+One `ExoPlayer` plays every long-form video. The domain declares a framework-free contract,
+`VideoPlayer` (`load`, `play`, `pause`, `seekTo`, `setMuted`, `retry`, `stop`), which exposes a
+`StateFlow<PlaybackState>`. `:core:media` implements it as `ExoVideoPlayer`, so no Media3 type
+reaches the domain or common UI.
+
+**Ownership.** Koin creates `ExoVideoPlayer` as an application singleton in `mediaModule`.
+The ViewModel and the composition never own the player, so a rotation cannot recreate it. Every
+player screen reuses the same instance, whether the video was opened from Home or from up next.
+The `ExoPlayer` inside is built on first use and released only when Koin closes (`onClose`).
+It holds the application context only, so it cannot leak an `Activity`.
+
+**Lifecycle.** `PlayerViewModel` drives the player through intents. The screen reports
+visibility with `ScreenShown` and `ScreenHidden`:
+
+| What happens | Result |
+|---|---|
+| The app goes to the background | The video pauses. On return it resumes only if it was playing and the player screen is still showing. A video that finishes loading in the background waits until the screen is shown. |
+| Rotation, or a dark-mode switch | Nothing. The screen ignores stop events while the activity is changing configuration. Only the video surface detaches and reattaches; playback continues without rebuffering. |
+| Back, or the on-screen back arrow | Nav3 drops the popped entry's lifecycle to `CREATED` at once, so audio pauses before the exit animation (about 40–110 ms on the test devices). When the entry's ViewModel clears, it calls `stop()`, which unloads the video and frees the decoders. The player instance stays. |
+| Up next | The current video stops at once, and the new route replaces the old one, so Back returns to Home. |
+| Another screen covers the player (no such destination exists yet) | The video pauses, and resumes if the player screen returns. |
+
+The shared player outlives each screen, so a screen controls it only while its own video is
+loaded (`PlaybackState.videoId`). A screen that is being replaced can therefore never pause or
+stop the video that replaced it. `VideoSurface` follows the same rule: it attaches only while the
+player holds its video, and it keeps the screen on only while that video plays.
+
+**HLS and ABR.** Every catalog item is HLS, played through `HlsMediaSource`. The default track
+selector and bandwidth meter handle adaptive bitrate. Debug builds attach Media3's
+`EventLogger` under the logcat tag `StreamlyPlayer`, so track switches are visible:
+`adb logcat -s StreamlyPlayer | grep videoInputFormat`.
+
+**One cache.** `MediaCache` owns the app's only `SimpleCache` (`StandaloneDatabaseProvider`,
+`NoOpCacheEvictor`). Playback reads through a `CacheDataSource` over it, so the downloads task
+can write into the same cache and downloaded videos will play offline. Playback reads but does
+not write, because a cache that never evicts would otherwise grow with everything streamed.
+
+**Adaptive layout.** A phone in portrait shows the 16:9 player above the details and up next.
+At expanded widths, up next moves to a side column. A short window, such as a phone in landscape,
+shows the video full screen in immersive mode.
+
 ### Tech stack
 
 | Concern | Library |
@@ -118,8 +162,12 @@ The project is built with Claude Code as the agent throughout.
   streams, and every thumbnail is a public image; all were checked to respond when added.
 - **Static chips.** All, Music, and Live filter the loaded feed locally rather than querying
   the API. Live matches streams with no fixed duration, so a live music stream appears under both.
-- **Player placeholder.** Opening a video shows its thumbnail, title, channel, and description
-  with a "Playback is coming soon" overlay until the Media3 player task.
+- **Player actions are stubs.** Like and Subscribe toggle only for the current screen and are not
+  saved. Share shows a "coming soon" message. Download is shown disabled until the downloads
+  task; it never shows fake progress.
+- **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
+  segments load through Media3's `DefaultHttpDataSource`. Media3 has no Ktor data source, and
+  writing one would add risk to the most heavily graded area without changing behavior.
 
 ### Known polish gaps
 
@@ -135,3 +183,8 @@ The project is built with Claude Code as the agent throughout.
   the bundled catalog never fails.
 - On a phone in landscape, the header and chips take a large share of the height. A collapsing
   header would give the grid more room.
+- Playback stops when the app is in the background. There is no `MediaSession`, background
+  audio, notification, or picture-in-picture.
+- Up next does not autoplay when a video ends; the replay button restarts it.
+- The live test streams sometimes rebuffer on the emulator. The buffering indicator shows while
+  they do.

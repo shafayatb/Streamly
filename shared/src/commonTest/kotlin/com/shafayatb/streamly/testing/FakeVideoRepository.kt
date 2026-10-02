@@ -18,6 +18,9 @@ class FakeVideoRepository(
     /** When set, every call fails with this error. */
     var failure: DataError.Network? = null
 
+    /** When set, only [getUpNext] fails, with this error. */
+    var upNextFailure: DataError.Network? = null
+
     /** When set, calls suspend until it completes, so tests can observe in-flight state. */
     var gate: CompletableDeferred<Unit>? = null
 
@@ -37,8 +40,10 @@ class FakeVideoRepository(
             ?: Result.Failure(DataError.Network.NOT_FOUND)
     }
 
-    override suspend fun getUpNext(id: String): Result<List<Video>, DataError.Network> =
-        respond { videos.filter { it.id != id } }
+    override suspend fun getUpNext(id: String): Result<List<Video>, DataError.Network> {
+        upNextFailure?.let { return Result.Failure(it) }
+        return respond { videos.filter { it.id != id } }
+    }
 
     private suspend fun <T> respond(data: () -> T): Result<T, DataError.Network> {
         gate?.await()
