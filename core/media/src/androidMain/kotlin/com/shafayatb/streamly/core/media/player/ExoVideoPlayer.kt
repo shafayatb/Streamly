@@ -2,8 +2,6 @@ package com.shafayatb.streamly.core.media.player
 
 import android.content.Context
 import androidx.annotation.OptIn
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
@@ -11,7 +9,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.util.EventLogger
 import com.shafayatb.streamly.domain.player.PlaybackState
 import com.shafayatb.streamly.domain.player.VideoPlayer
@@ -117,19 +114,7 @@ public class ExoVideoPlayer internal constructor(
         player = null
     }
 
-    private fun buildPlayer(): ExoPlayer = ExoPlayer.Builder(appContext)
-        // Every catalog stream is HLS. The default track selector and bandwidth meter switch
-        // between the playlist's variants as the measured bandwidth changes.
-        .setMediaSourceFactory(HlsMediaSource.Factory(dataSourceFactory))
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build(),
-            /* handleAudioFocus = */ true,
-        )
-        .setHandleAudioBecomingNoisy(true)
-        .build()
+    private fun buildPlayer(): ExoPlayer = buildHlsPlayer(appContext, dataSourceFactory)
         .apply {
             addListener(PlayerListener())
             // Logs each video format switch with its bitrate, the evidence that ABR works.
@@ -138,19 +123,7 @@ public class ExoVideoPlayer internal constructor(
 
     private fun publishState() {
         val player = exoPlayer
-        val isLive = loadedVideoIsLive || player.isCurrentMediaItemLive
-        _state.value = _state.value.copy(
-            videoId = player.currentMediaItem?.mediaId,
-            status = playbackStatusOf(player.playbackState),
-            playWhenReady = player.playWhenReady,
-            position = player.currentPosition.coerceAtLeast(0).milliseconds,
-            duration = player.duration
-                .takeUnless { isLive || it == C.TIME_UNSET }
-                ?.milliseconds,
-            isLive = isLive,
-            isMuted = player.volume == 0f,
-            error = player.playerError?.let { playbackErrorOf(it.errorCode) },
-        )
+        _state.value = player.toPlaybackState(isLive = loadedVideoIsLive)
         if (player.isPlaying) startPositionUpdates() else stopPositionUpdates()
     }
 
