@@ -30,6 +30,7 @@
 
     <string name="nav_home">Home</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="nav_downloads">Downloads</string>
 
     <string name="shorts_title">Shorts</string>
     <string name="shorts_loading">Loading shorts</string>
@@ -43,6 +44,21 @@
     <string name="shorts_comments_unavailable">Comments are coming soon.</string>
     <string name="shorts_paused">Paused</string>
 
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_storage">%1$s used · %2$s free</string>
+    <string name="downloads_loading">Loading downloads</string>
+    <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_empty_body">Videos you download play here, even offline.</string>
+    <string name="downloads_error_title">Couldn’t load your downloads</string>
+    <string name="downloads_queued">Queued</string>
+    <string name="downloads_waiting">Waiting for network</string>
+    <string name="downloads_progress">%1$s · %2$s</string>
+    <string name="downloads_ready">Ready to play</string>
+    <string name="downloads_detail">%1$s · %2$s</string>
+    <string name="downloads_failed">Download failed</string>
+    <string name="downloads_retry">Retry</string>
+    <string name="cd_remove_download">Remove download</string>
+
     <string name="video_live">LIVE</string>
     <string name="video_card_metadata">%1$s · %2$s · %3$s</string>
     <string name="age_just_now">Just now</string>
@@ -54,7 +70,19 @@
     <string name="player_liked">Liked</string>
     <string name="player_share">Share</string>
     <string name="player_download">Download</string>
-    <string name="player_download_unavailable">Downloads are coming soon</string>
+    <string name="player_download_queued">Queued</string>
+    <string name="player_download_waiting">Waiting</string>
+    <string name="player_downloaded">Downloaded</string>
+    <string name="player_download_retry">Retry</string>
+    <string name="player_download_removing">Removing…</string>
+    <string name="cd_cancel_download">Cancel download</string>
+    <string name="download_remove_title">Remove download?</string>
+    <string name="download_remove_body">“%1$s” will be deleted from this device.</string>
+    <string name="download_remove_confirm">Remove</string>
+    <string name="download_remove_cancel">Cancel</string>
+    <string name="download_error_network">Couldn’t start the download. Check your connection and try again.</string>
+    <string name="download_error_live">Live streams can’t be downloaded.</string>
+    <string name="download_error_unknown">Couldn’t start the download. Please try again.</string>
     <string name="player_share_unavailable">Sharing is coming soon.</string>
     <string name="player_up_next">Up next</string>
     <string name="player_up_next_empty">Nothing else to watch yet.</string>

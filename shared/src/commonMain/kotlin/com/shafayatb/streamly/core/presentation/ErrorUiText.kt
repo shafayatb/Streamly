@@ -1,8 +1,12 @@
 package com.shafayatb.streamly.core.presentation
 
+import com.shafayatb.streamly.domain.download.DownloadError
 import com.shafayatb.streamly.domain.player.PlaybackError
 import com.shafayatb.streamly.domain.util.DataError
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.download_error_live
+import streamly.shared.generated.resources.download_error_network
+import streamly.shared.generated.resources.download_error_unknown
 import streamly.shared.generated.resources.error_network_no_internet
 import streamly.shared.generated.resources.error_network_not_found
 import streamly.shared.generated.resources.error_network_serialization
@@ -40,5 +44,13 @@ fun PlaybackError.toUiText(): UiText = UiText.Resource(
         PlaybackError.SOURCE_UNAVAILABLE -> Res.string.player_error_source
         PlaybackError.UNSUPPORTED_FORMAT -> Res.string.player_error_format
         PlaybackError.UNKNOWN -> Res.string.player_error_unknown
+    },
+)
+
+fun DownloadError.toUiText(): UiText = UiText.Resource(
+    when (this) {
+        DownloadError.NETWORK -> Res.string.download_error_network
+        DownloadError.LIVE_NOT_SUPPORTED -> Res.string.download_error_live
+        DownloadError.UNKNOWN -> Res.string.download_error_unknown
     },
 )

@@ -10,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.util.EventLogger
+import com.shafayatb.streamly.core.media.download.OfflineMediaItems
 import com.shafayatb.streamly.domain.player.PlaybackState
 import com.shafayatb.streamly.domain.player.VideoPlayer
 import com.shafayatb.streamly.domain.video.Video
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 public class ExoVideoPlayer internal constructor(
     context: Context,
     private val dataSourceFactory: DataSource.Factory,
+    private val offlineMediaItems: OfflineMediaItems,
     private val logEvents: Boolean,
 ) : VideoPlayer {
 
@@ -58,7 +60,9 @@ public class ExoVideoPlayer internal constructor(
 
     override fun load(video: Video, playWhenReady: Boolean) {
         loadedVideoIsLive = video.isLive
-        val mediaItem = MediaItem.Builder()
+        // A finished download plays the rendition it saved: its stream keys keep the player from
+        // choosing a variant that is not on the device, which offline would fail.
+        val mediaItem = offlineMediaItems.completedMediaItem(video.id) ?: MediaItem.Builder()
             .setMediaId(video.id)
             .setUri(video.hlsUrl)
             .setMimeType(MimeTypes.APPLICATION_M3U8)

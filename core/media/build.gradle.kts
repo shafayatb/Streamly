@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -18,6 +19,10 @@ kotlin {
             jvmTarget = JvmTarget.JVM_11
         }
         withHostTest {}
+        // The download service's notification channel name and icon are Android resources.
+        androidResources {
+            enable = true
+        }
     }
 
     sourceSets {
@@ -31,6 +36,7 @@ kotlin {
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.exoplayer.hls)
             implementation(libs.media3.ui.compose)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.android)
         }
         commonTest.dependencies {

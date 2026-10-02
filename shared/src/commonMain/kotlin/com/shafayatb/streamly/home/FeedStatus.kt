@@ -95,15 +95,15 @@ private fun SkeletonCard() {
     }
 }
 
-/** A centered icon, title, message, and one action, for the empty and error states. */
+/** A centered icon, title, message, and an optional action, for the empty and error states. */
 @Composable
 fun FeedMessage(
     icon: DrawableResource,
     title: String,
     message: String,
-    actionLabel: String,
-    onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {},
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -137,9 +137,11 @@ fun FeedMessage(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(24.dp))
-            Button(onClick = onAction) {
-                Text(actionLabel)
+            if (actionLabel != null) {
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = onAction) {
+                    Text(actionLabel)
+                }
             }
         }
     }

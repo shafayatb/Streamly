@@ -10,6 +10,7 @@ import com.shafayatb.streamly.domain.player.PlaybackError
 import com.shafayatb.streamly.domain.player.PlaybackStatus
 import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.home.toCardUi
+import com.shafayatb.streamly.testing.FakeDownloadRepository
 import com.shafayatb.streamly.testing.FakeVideoPlayer
 import com.shafayatb.streamly.testing.FakeVideoRepository
 import com.shafayatb.streamly.testing.testVideo
@@ -63,7 +64,13 @@ class PlayerViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(videoId: String = "v1") = PlayerViewModel(videoId, repository, player, clock)
+    private fun viewModel(videoId: String = "v1") = PlayerViewModel(
+        videoId = videoId,
+        videoRepository = repository,
+        videoPlayer = player,
+        downloadRepository = FakeDownloadRepository().apply { emit() },
+        clock = clock,
+    )
 
     @Test
     fun showsLoadingUntilTheVideoArrives() {

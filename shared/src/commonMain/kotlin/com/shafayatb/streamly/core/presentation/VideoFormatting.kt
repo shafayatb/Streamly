@@ -75,3 +75,19 @@ fun formatDuration(duration: Duration): String = duration.toComponents { hours, 
 }
 
 private fun Int.twoDigits(): String = toString().padStart(2, '0')
+
+/** Sizes in decimal units, as Android's storage settings show them: "4.2 MB", "66 MB", "1.2 GB". */
+fun formatBytes(bytes: Long): String = when {
+    bytes < 1_000 -> "$bytes B"
+    bytes < 1_000_000 -> "${roundedDiv(bytes, 1_000)} KB"
+    bytes < 10_000_000 -> "${oneDecimal(bytes, 1_000_000)} MB"
+    bytes < 1_000_000_000 -> "${roundedDiv(bytes, 1_000_000)} MB"
+    else -> "${oneDecimal(bytes, 1_000_000_000)} GB"
+}
+
+private fun roundedDiv(value: Long, unit: Long): Long = (value + unit / 2) / unit
+
+private fun oneDecimal(value: Long, unit: Long): String {
+    val tenths = roundedDiv(value * 10, unit)
+    return "${tenths / 10}.${tenths % 10}"
+}

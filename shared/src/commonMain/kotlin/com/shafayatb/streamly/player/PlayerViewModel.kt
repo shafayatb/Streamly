@@ -7,9 +7,13 @@ import com.shafayatb.streamly.core.presentation.formatAge
 import com.shafayatb.streamly.core.presentation.formatDuration
 import com.shafayatb.streamly.core.presentation.formatViewCount
 import com.shafayatb.streamly.core.presentation.toUiText
+import com.shafayatb.streamly.domain.download.DownloadRepository
+import com.shafayatb.streamly.domain.download.DownloadStatus
+import com.shafayatb.streamly.domain.download.VideoDownload
 import com.shafayatb.streamly.domain.player.PlaybackState
 import com.shafayatb.streamly.domain.player.PlaybackStatus
 import com.shafayatb.streamly.domain.player.VideoPlayer
+import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.domain.util.onFailure
 import com.shafayatb.streamly.domain.util.onSuccess
 import com.shafayatb.streamly.domain.video.Video
@@ -43,20 +47,36 @@ class PlayerViewModel(
     private val videoId: String,
     private val videoRepository: VideoRepository,
     private val videoPlayer: VideoPlayer,
+    private val downloadRepository: DownloadRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val screen = MutableStateFlow(PlayerState())
 
-    val state: StateFlow<PlayerState> = combine(screen, videoPlayer.state) { screen, playback ->
-        val isLiveVideo = (screen.content as? PlayerContent.Loaded)?.video?.isLive == true
-        screen.copy(playback = playback.toPlaybackUi(videoId, isLiveVideo))
+    private val downloadEntry = MutableStateFlow<VideoDownload?>(null)
+
+    // Covers the gap between a tap on Download and the downloader reporting the new download.
+    private val isStartingDownload = MutableStateFlow(false)
+
+    val state: StateFlow<PlayerState> = combine(
+        screen,
+        videoPlayer.state,
+        downloadEntry,
+        isStartingDownload,
+    ) { screen, playback, download, isStarting ->
+        val isLive = (screen.content as? PlayerContent.Loaded)?.video?.isLive
+        screen.copy(
+            playback = playback.toPlaybackUi(videoId, isLiveVideo = isLive == true),
+            download = downloadActionOf(isLive, download, isStarting),
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, screen.value)
 
     private val _events = Channel<PlayerEvent>()
     val events: Flow<PlayerEvent> = _events.receiveAsFlow()
 
     private var detailsJob: Job? = null
+    private var loadedVideo: Video? = null
+    private var downloadStart: Job? = null
     private var upNextJob: Job? = null
 
     // Assume visible until told otherwise: the screen is being composed as this is created.
@@ -70,6 +90,13 @@ class PlayerViewModel(
     init {
         loadDetails()
         loadUpNext()
+        viewModelScope.launch {
+            downloadRepository.downloads.collect { result ->
+                val download = (result as? Result.Success)?.data?.firstOrNull { it.videoId == videoId }
+                downloadEntry.value = download
+                if (download != null) isStartingDownload.value = false
+            }
+        }
     }
 
     fun onIntent(intent: PlayerIntent) {
@@ -87,6 +114,14 @@ class PlayerViewModel(
             PlayerIntent.Share -> send(PlayerEvent.ShowMessage(UiText.Resource(Res.string.player_share_unavailable)))
             PlayerIntent.ScreenShown -> onScreenShown()
             PlayerIntent.ScreenHidden -> onScreenHidden()
+            PlayerIntent.Download -> startDownload()
+            PlayerIntent.CancelDownload -> cancelDownload()
+            PlayerIntent.RequestRemoveDownload -> screen.update { it.copy(isRemoveDownloadDialogShown = true) }
+            PlayerIntent.ConfirmRemoveDownload -> {
+                screen.update { it.copy(isRemoveDownloadDialogShown = false) }
+                downloadRepository.remove(videoId)
+            }
+            PlayerIntent.DismissRemoveDownload -> screen.update { it.copy(isRemoveDownloadDialogShown = false) }
         }
     }
 
@@ -104,6 +139,29 @@ class PlayerViewModel(
         // Silence this video now rather than when the replaced screen finishes leaving.
         if (ownsPlayer) videoPlayer.stop()
         send(PlayerEvent.NavigateToVideo(nextVideoId))
+    }
+
+    private fun startDownload() {
+        if (downloadEntry.value?.status == DownloadStatus.FAILED) {
+            downloadRepository.retry(videoId)
+            return
+        }
+        val video = loadedVideo ?: return
+        if (isStartingDownload.value || downloadEntry.value != null) return
+        isStartingDownload.value = true
+        downloadStart = viewModelScope.launch {
+            downloadRepository.download(video).onFailure { error ->
+                isStartingDownload.value = false
+                send(PlayerEvent.ShowMessage(error.toUiText()))
+            }
+        }
+    }
+
+    private fun cancelDownload() {
+        // Also covers a download still being prepared: the repository drops that start too.
+        downloadStart?.cancel()
+        isStartingDownload.value = false
+        downloadRepository.remove(videoId)
     }
 
     private fun onScreenShown() {
@@ -135,6 +193,7 @@ class PlayerViewModel(
         detailsJob = viewModelScope.launch {
             videoRepository.getVideo(videoId)
                 .onSuccess { video ->
+                    loadedVideo = video
                     screen.update { it.copy(content = PlayerContent.Loaded(video.toDetailsUi(clock.now()))) }
                     startPlayback(video)
                 }
