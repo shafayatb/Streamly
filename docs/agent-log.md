@@ -232,3 +232,93 @@ itself.
     index read and a `formatBytes` unit boundary).
 - **Final count:** 165 host tests and 1 device test; `./gradlew check` green.
 - **Commits:** `82d2ac2`, `9bf2390`, `c99e8c3`, `bd5db06`, `59e4770`, `6831ed5`, and this docs commit.
+
+### 7. Profile, sign-out, and per-account downloads — October 2
+
+- **Branch:** `feature/profile`.
+- **Plan:** [`docs/plans/2026-10-03-profile.md`](plans/2026-10-03-profile.md), the agreed design and
+  the implementation plan in one file.
+- **Prompt:** the Profile screen (mockup 06) and the sign-out confirmation (mockup 07), completing
+  the navigation shell: avatar, name, and email from the session, rows for Downloads, Watch
+  history, Settings, and Sign out; a dialog that survives rotation; confirming clears the session
+  and returns to onboarding.
+- **How the agent worked:** the same workflow as task 6.
+  - **Brainstorming (superpowers *brainstorming*).** The agent read the references, the task 6 log,
+    mockups 06 and 07, and the session and navigation code, then asked the four open questions.
+    The reviewer chose a guest "Sign in" row with its own dialog, "coming soon" snackbars for Watch
+    history and Settings, and Profile as a fourth tab. For downloads the agent recommended removing
+    them all on sign-out (Netflix/Spotify); **the reviewer asked instead to tie downloads to the
+    account that saved them**. The agent explained the cost (shared segments, migration, abandoned
+    files), the reviewer confirmed, and the agent read the Media3 1.11 sources before proposing
+    where ownership lives. The design was approved in three sections.
+  - **Plan (superpowers *writing-plans*).** Eight tasks with test-first steps and code, five Review
+    Focus risks each tied to a test and a device step, and a seven-commit sequence. The reviewer
+    approved it and chose inline execution with one fresh review at the end.
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** Every piece of logic
+    started with a failing test. Because those first failures were compile errors, the agent also
+    broke the code on purpose for the Review Focus rules (no start cancel, no adoption, fail closed,
+    no double-confirm guard) and checked that exactly the intended test failed each time. A ledger
+    recorded each task and ruling.
+  - **Verify (superpowers *verification-before-completion*).** Build, `check`, a device test, and
+    the device journeys below, before any claim of completion.
+- **Decisions:**
+  - **Ownership outside Media3.** `DownloadManager.mergeRequest` (DownloadManager.java:657) puts an
+    existing download, even a completed one, back in the queue when its request is added again, so
+    owners cannot live in `DownloadRequest.data`: changing them would re-download finished videos
+    and stop offline playback. Owners live in their own DataStore file instead.
+  - **Rules in the domain.** `AccountDownloadRepository` (pure Kotlin, 21 host tests) wraps the
+    device-wide `DeviceDownloads` and implements the existing `DownloadRepository`, so the Player
+    and Downloads ViewModels did not change. A shared video keeps one copy with a set of owners;
+    its files are deleted only when the last owner removes it. `removeOwner` returns the remaining
+    owners from the same DataStore write, so "was that the last owner?" cannot race.
+  - **Offline playback per account,** with one deliberate exception: until the owners are read (a
+    player restored at launch), the saved copy is trusted, so an owner's offline restore never
+    fails on a race.
+  - **Rulings during the build** (from the ledger): the remove dialog said "will be deleted from this
+    device", which is false for a shared video, so it now says "will be removed from your
+    downloads"; DataStore writes share one `tryEdit` helper; the Sign out label uses a darker red
+    in light mode for contrast; Profile rows have leading icons, which mockup 06 does not show.
+- **Problems found:**
+  - The agent's first relaunch test for Review Focus 1 used `am start`, which starts a fresh task at
+    Home rather than restoring one; resuming from Recents is the restore path, and it passed there.
+  - A tap meant for Tears of Steel landed on Big Buck Bunny's player and opened its remove dialog;
+    the agent cancelled it, confirmed nothing changed, and redid the check on the right video.
+- **Verification:** 209 host tests (domain 30, data 28, shared 124, media 27) and 5 device tests;
+  `check` green with only the 7 pre-existing lint warnings. On the emulator (Android 16) and the
+  Galaxy A04 (Android 14):
+  - Profile for Google ("AR", Anika Rahman), email ("JD", Jane Doe from `jane.doe@example.com`), and
+    guest (person icon, "Not signed in", primary "Sign in" with "Leave guest mode?"); light, dark,
+    phone landscape (header beside the rows), a 700 dp medium window, and a 2400x1800 tablet.
+  - Downloads in Profile opens the Downloads tab, and Back returns to Home; Watch history and
+    Settings show their snackbars above the bar.
+  - Sign out → Cancel stays signed in; the dialog survives rotation on both devices; confirming
+    returns to onboarding with the session cleared and no started player in `dumpsys audio`; Back
+    then shows the launcher, and relaunching starts at onboarding.
+  - Upgrade: task 6 downloads were adopted by the signed-in account on both devices (guest on the
+    emulator, Anika on the A04) and still played offline.
+  - Per account: Anika sees none of the guest's downloads; Jane sees none of Anika's; Jane opening
+    Anika's download offline gets the error overlay, not the saved copy. A download Jane started
+    at 12% kept going after she signed out (59%, then completed) and never appeared for Anika.
+  - Shared files: downloading a video another account saved completed at once with no new
+    download, and removing it for one account left the cache unchanged (100 MB on the emulator,
+    8.4 MB on the A04) and the other account still played it offline.
+  - Quick cancel: Download then Cancel within 100 ms left no owner record and no download, and
+    nothing was adopted after a relaunch.
+  - Restored offline: killed on the Player while offline, then resumed from Recents:
+    `Playing download big-buck-bunny (1 stream keys)` at 848x480.
+  - Regression: Shorts kept 2 `ExoPlayerImpl … Init` after 10 swipes with one started track and
+    none after switching to Profile; `Activities: 1` after six rotations on both devices.
+- **Fresh review of the whole branch** (one reviewer subagent on Fable 5.1). No critical issues; it
+  confirmed the ownership design, the Koin wiring, and all five Review Focus items. The agent fixed
+  two findings, each proven by a test that failed first:
+  - **After a failed ownership read, Remove and Retry silently did nothing** for the rest of the
+    process, because they relied on a cached snapshot that the failed read froze. They now read the
+    account and the owners afresh (`removeWorksAfterAFailedOwnersRead`,
+    `retryWorksAfterAFailedOwnersRead`).
+  - **A download still being removed at launch was adopted** (graded Minor by the reviewer, raised
+    to Important because a removed video would come back and its files never be reclaimed). Adoption
+    now skips `REMOVING` (`aDownloadBeingRemovedIsNotAdopted`). On the emulator, removing Big Buck
+    Bunny afterwards dropped the cache from 288 MB to 219 MB.
+  - A corrupted ownership file would hand every download to the first account seen; this is in the
+    README's known gaps. Nine other minor findings were deferred to the release task.
+- **Commits:** `1b3e996`, `0ee48d2`, `f5dcf93`, `6c6298c`, `a57e1c6`, `cf78b07`, and this docs commit.

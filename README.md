@@ -4,16 +4,18 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** onboarding, a persisted session, the home feed, the normal-video player, Shorts, and
-> offline downloads are done. Returning users go straight to Home, which loads the video catalog with category
+> **Status:** all seven reference views are done: onboarding, the home feed, Shorts, the player,
+> Downloads, Profile, and the sign-out confirmation. Returning users go straight to Home, which loads the video catalog with category
 > chips, an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS
 > with Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
 > playback errors with retry, and an up-next list. A bottom bar (a rail on wide windows) switches
-> between Home, Shorts, and Downloads. Shorts is a full-screen vertical pager of HLS shorts that
+> between Home, Shorts, Downloads, and Profile. Shorts is a full-screen vertical pager of HLS shorts that
 > autoplays only the visible one from a pool of at most two players. The player's Download action
 > saves a video with Media3's `DownloadManager`, with real progress in the player, the Downloads
 > tab, and a notification; finished downloads play with the network off and can be removed.
-> Profile and sign-out are the next task.
+> Downloads belong to the account that saved them: signing out hides them, and signing in again
+> as the same account brings them back. Profile shows the account and signs out after a
+> confirmation, returning to onboarding.
 
 ## Setup
 
@@ -226,12 +228,36 @@ queued or downloading cancels the download. "Downloaded" asks before removing, a
 restarts a failed download. The Downloads tab (mockup 05) shows the storage used and free space,
 unfinished and failed downloads first (with a progress bar, "Waiting for network", or Retry), then
 finished ones marked "Ready to play". Rows can be cancelled or removed (with a confirmation
-dialog), and tapping a finished one opens the player. Removing a download deletes its files at
-once, so the storage figure drops and the video no longer plays offline.
+dialog), and tapping a finished one opens the player. Removing a download takes it out of the
+account's list at once; its files are deleted when no other account still has it saved (see
+below), so the storage figure drops and the video no longer plays offline for that account.
+
+**Downloads per account.** Downloads belong to the account that saved them, like YouTube's:
+signing out hides them, and signing in again as the same account shows them. A video's files are
+still saved once on the device, so the design keeps two layers:
+
+- `DeviceDownloads` (`MediaDownloads`) is every download on the device, whoever saved it.
+- `DownloadOwnershipRepository` (`:data`, its own DataStore file) records which accounts saved each
+  video. The account key is `email:<address>` for a signed-in account and `guest` for a guest.
+- `AccountDownloadRepository` (pure Kotlin in `:domain`, fully host-tested) combines the session,
+  the owners, and the device downloads into the `DownloadRepository` the screens already used, so
+  the Player and Downloads ViewModels did not change.
+
+The rules: an account sees only its own downloads and its own storage figure. Downloading a video
+another account already saved adds an owner and reuses the files, with no second download. Removing
+it drops only that account; the files are deleted when the last owner removes them, because two
+accounts' downloads share the same cached segments. The player plays a saved copy only for an
+account that owns it and streams for anyone else. Until the owners have been read (a player
+restored at launch), it trusts the saved copy, so an owner's offline playback never fails on a
+race. Downloads that existed before this change are adopted by the first account that sees them.
+
+Ownership is not stored in `DownloadRequest.data`: Media3's `DownloadManager.mergeRequest` moves an
+existing download, even a completed one, back to the queue when its request is added again, so
+changing owners there would re-download finished videos and break offline playback.
 
 ### Navigation shell
 
-`AppShell` wraps the Nav3 `NavDisplay` with the tab chrome (Home, Shorts, and Downloads): a bottom `NavigationBar` on compact
+`AppShell` wraps the Nav3 `NavDisplay` with the tab chrome (Home, Shorts, Downloads, and Profile): a bottom `NavigationBar` on compact
 and medium widths and a `NavigationRail` on expanded widths, shown only while a tab is on top.
 The player and other pushed destinations take the whole window. `NavDisplay` stays at the same
 place in the composition whether or not the chrome shows, so no back-stack state is lost.
@@ -242,6 +268,24 @@ releases its players; returning to Shorts starts a fresh screen. A video opened 
 plays on top of the Downloads tab, so Back returns there. Home's entry stays in the back
 stack the whole time, so its ViewModel and its saved grid position survive switching tabs. The
 chrome is dark while Shorts is selected, because Shorts always uses the dark color scheme.
+
+### Profile and sign-out
+
+Profile (mockup 06) is the fourth tab. `ProfileViewModel` reads `SessionRepository.session` and
+shows the initials, name, and email under a brand header, then rows for Downloads (which selects
+the Downloads tab), Watch history, Settings, and a red Sign out. In phone landscape the header
+moves to a side panel; on wider windows the rows stay in a 640 dp column.
+
+Sign out opens the confirmation (mockup 07): "Sign out?" with Cancel and a red Sign out. The
+dialog lives in the ViewModel's state, so it survives rotation. Confirming clears the session and
+replaces the whole back stack with Onboarding, so Back leaves the app and the next launch starts at
+onboarding. A failed sign-out closes the dialog, shows a message, and leaves you signed in; a
+second tap while signing out is ignored. Downloads are not deleted: they are hidden until their
+account signs in again, and a download in progress keeps going in the background.
+
+A guest sees a person icon, "Guest", and "Not signed in", and a primary "Sign in" row in place of
+Sign out. It asks "Leave guest mode?" (guest downloads stay for the next time you continue as a
+guest) and then opens onboarding.
 
 ### Tech stack
 
@@ -312,6 +356,7 @@ The project is built with Claude Code as the agent throughout.
 - **Player actions are stubs, except Download.** Like and Subscribe toggle only for the current
   screen and are not saved. Share shows a "coming soon" message. Download is real (see
   [Offline downloads](#offline-downloads)).
+- **Watch history and Settings are stubs.** Their Profile rows show a "coming soon" message.
 - **Shorts actions are stubs.** Like toggles and counts the user's like for as long as the Shorts
   screen lasts. Comment and Share show "coming soon" messages.
 - **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
@@ -324,8 +369,12 @@ The project is built with Claude Code as the agent throughout.
 - Status bar icons are always light, which suits the current brand-colored headers. Screens with
   light headers will need per-screen system bar styling.
 - Text uses the default font instead of the rounded display font in the mockups.
-- The mockup's two header icons are not shown, because search and the profile entry do not exist
-  yet. Profile joins the navigation shell in the next task.
+- The mockup's two header icons are not shown: search does not exist, and Profile is a tab.
+- Downloads of an account that never signs in again stay on the device; nothing reclaims them.
+- The download notification shows the title of whatever is downloading, whichever account is
+  signed in.
+- If the ownership file is ever corrupted, it starts empty and the first account seen adopts every
+  download on the device, including other accounts' ones.
 - A thumbnail that failed to load while offline keeps its placeholder until its card scrolls out
   and back, or the screen is reopened; Coil does not retry when the connection returns.
 - The feed's error state is covered by unit tests but cannot be triggered on a device, because
