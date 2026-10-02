@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -35,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shafayatb.streamly.core.designsystem.components.BrandBackground
@@ -71,8 +70,10 @@ import streamly.shared.generated.resources.ic_cloud_off
 import streamly.shared.generated.resources.ic_video_library
 import streamly.shared.generated.resources.video_views
 
+/** [bottomInset] is the system bar space the app shell leaves for this screen to keep clear. */
 @Composable
 fun HomeRoot(
+    bottomInset: Dp,
     onNavigateToPlayer: (videoId: String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -84,13 +85,14 @@ fun HomeRoot(
         }
     }
 
-    HomeScreen(state = state, onIntent = viewModel::onIntent)
+    HomeScreen(state = state, onIntent = viewModel::onIntent, bottomInset = bottomInset)
 }
 
 @Composable
 fun HomeScreen(
     state: HomeState,
     onIntent: (HomeIntent) -> Unit,
+    bottomInset: Dp = 0.dp,
 ) {
     val horizontalInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     Column(
@@ -111,7 +113,7 @@ fun HomeScreen(
             start = 16.dp,
             end = 16.dp,
             top = 4.dp,
-            bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            bottom = 16.dp + bottomInset,
         )
         val contentModifier = Modifier
             .fillMaxSize()

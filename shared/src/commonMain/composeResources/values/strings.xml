@@ -28,6 +28,9 @@
     <string name="home_refresh">Refresh</string>
     <string name="home_error_title">Couldn’t load your feed</string>
 
+    <string name="nav_home">Home</string>
+    <string name="nav_shorts">Shorts</string>
+
     <string name="shorts_title">Shorts</string>
     <string name="shorts_loading">Loading shorts</string>
     <string name="shorts_error_title">Couldn’t load Shorts</string>
