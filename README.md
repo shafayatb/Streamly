@@ -4,13 +4,16 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** onboarding, a persisted session, the home feed, the normal-video player, and Shorts
-> are done. Returning users go straight to Home, which loads the video catalog with category
+> **Status:** onboarding, a persisted session, the home feed, the normal-video player, Shorts, and
+> offline downloads are done. Returning users go straight to Home, which loads the video catalog with category
 > chips, an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS
 > with Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
 > playback errors with retry, and an up-next list. A bottom bar (a rail on wide windows) switches
-> between Home and Shorts, a full-screen vertical pager of HLS shorts that autoplays only the
-> visible one from a pool of at most two players. Downloads are the next task.
+> between Home, Shorts, and Downloads. Shorts is a full-screen vertical pager of HLS shorts that
+> autoplays only the visible one from a pool of at most two players. The player's Download action
+> saves a video with Media3's `DownloadManager`, with real progress in the player, the Downloads
+> tab, and a notification; finished downloads play with the network off and can be removed.
+> Profile and sign-out are the next task.
 
 ## Setup
 
@@ -28,6 +31,7 @@ Multiplatform, with an Android target only.
 ./gradlew :androidApp:installDebug      # install on a connected device or emulator
 ./gradlew check                         # lint and host tests for every module
 ./gradlew :shared:testAndroidHostTest   # host tests for one module (same task in each library)
+./gradlew :shared:connectedAndroidDeviceTest   # Compose device tests (needs a device or emulator)
 ```
 
 The debug APK is written to `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
@@ -108,9 +112,10 @@ selector and bandwidth meter handle adaptive bitrate. Debug builds attach Media3
 `adb logcat -s StreamlyPlayer | grep videoInputFormat`.
 
 **One cache.** `MediaCache` owns the app's only `SimpleCache` (`StandaloneDatabaseProvider`,
-`NoOpCacheEvictor`). Playback reads through a `CacheDataSource` over it, so the downloads task
-can write into the same cache and downloaded videos will play offline. Playback reads but does
-not write, because a cache that never evicts would otherwise grow with everything streamed.
+`NoOpCacheEvictor`). Playback reads through a `CacheDataSource` over it, and `DownloadManager`
+writes into the same cache, so downloaded videos play offline (see [Offline downloads](#offline-downloads)).
+Playback reads but does not write, because a cache that never evicts would otherwise grow with
+everything streamed.
 
 **Adaptive layout.** A phone in portrait shows the 16:9 player above the details and up next.
 At expanded widths, up next moves to a side column. A short window, such as a phone in landscape,
@@ -169,16 +174,72 @@ its short, so a page whose player was recycled never shows another short's pictu
 the screen with the short (cropped). Medium and wider windows show it at 9:16, centered with black
 bars, with the like, comment, and share actions beside it rather than over it.
 
+### Offline downloads
+
+Downloads use Media3's offline module. The domain declares `DownloadRepository` (`downloads`,
+`storage`, `download(video)`, `retry`, `remove`) with a framework-free `VideoDownload` model
+(`QUEUED`, `WAITING_FOR_NETWORK`, `DOWNLOADING`, `COMPLETED`, `FAILED`, `REMOVING`, percent, and
+bytes). `:core:media` implements it as `MediaDownloads`, an application singleton.
+
+**One cache, one database.** `MediaDownloads` owns the app's only `DownloadManager`. It writes into
+`MediaCache`'s `SimpleCache`, shares its `StandaloneDatabaseProvider` (the download index and the
+cache index live in the same database), and fetches through the same `DefaultHttpDataSource`
+factory as playback. Nothing else creates a cache or database.
+
+**Rendition.** `DownloadHelper` reads the master playlist and picks the best variant at or below
+854x480, plus its audio. A 10.5-minute video is about 70 MB instead of about 490 MB at 1080p, and
+a stream without such a variant falls back to its lowest one. Live streams cannot be downloaded,
+so the player hides the action for them. The video's title, channel, thumbnail URL, and length are
+stored as JSON in `DownloadRequest.data`, so the Downloads tab lists them offline without the catalog.
+
+**Offline playback through the normal player.** The cache alone is not enough: with the network
+off, `HlsMediaSource` would pick a variant from its bandwidth estimate, usually one that was never
+downloaded. So when `ExoVideoPlayer` loads a video that has a *completed* download, it plays
+`DownloadRequest.toMediaItem()`, whose stream keys restrict the playlist to the saved rendition.
+Everything else, including partly downloaded videos, streams with full ABR as before. The check
+lives inside `:core:media`, so stream keys never reach the domain or the UI. Debug builds log
+`StreamlyDownloads: Playing download <id> (<n> stream keys)` when this happens.
+
+**Progress.** `DownloadManager` reports state changes through its listener but not progress, so
+`MediaDownloads` polls `getCurrentDownloads()` every 500 ms while anything is downloading and stops
+when nothing is. Completed and failed downloads are not in `getCurrentDownloads()`, so it reads
+the download index once at start (off the main thread) and applies listener events on top. The
+progress mapping is host-tested (`DownloadMappingTest`, `DownloadMetadataTest`).
+
+**Service and notifications.** `StreamlyDownloadService` is Media3's `DownloadService` running as a
+`dataSync` foreground service (`FOREGROUND_SERVICE_DATA_SYNC` for Android 14+), so downloads
+continue in the background. Its notification shows the title and percent, and a separate
+notification reports "Download completed" or "Download failed". On Android 13+ the first tap on
+Download asks for notification permission; the download runs whatever the answer, because only
+the notification needs it. `MainActivity` starts the service at launch, so downloads left
+unfinished by a killed process resume.
+
+**Network policy.** Downloads may use any network (`Requirements.NETWORK`, Media3's default). There
+is no settings screen yet to offer a Wi-Fi-only switch, and blocking on mobile data with no way
+to override it would be worse. While offline, a download shows "Waiting for network" and resumes
+on its own. `getScheduler()` returns `null`: Media3 never uses a scheduler on Android 12+, where the
+service simply stays in the foreground until the network returns, and doing the same on older
+versions avoids a job service and the boot permission for a path the test devices cannot exercise.
+
+**UI.** The Player's Download action shows the real percent in a progress ring; tapping it while
+queued or downloading cancels the download. "Downloaded" asks before removing, and "Retry"
+restarts a failed download. The Downloads tab (mockup 05) shows the storage used and free space,
+unfinished and failed downloads first (with a progress bar, "Waiting for network", or Retry), then
+finished ones marked "Ready to play". Rows can be cancelled or removed (with a confirmation
+dialog), and tapping a finished one opens the player. Removing a download deletes its files at
+once, so the storage figure drops and the video no longer plays offline.
+
 ### Navigation shell
 
-`AppShell` wraps the Nav3 `NavDisplay` with the tab chrome: a bottom `NavigationBar` on compact
+`AppShell` wraps the Nav3 `NavDisplay` with the tab chrome (Home, Shorts, and Downloads): a bottom `NavigationBar` on compact
 and medium widths and a `NavigationRail` on expanded widths, shown only while a tab is on top.
 The player and other pushed destinations take the whole window. `NavDisplay` stays at the same
 place in the composition whether or not the chrome shows, so no back-stack state is lost.
 
 Home is always the root of the back stack, and every other tab sits on top of it
 (`selectTopLevel`). Back from Shorts and the Home tab therefore both pop Shorts, which is what
-releases its players; returning to Shorts starts a fresh screen. Home's entry stays in the back
+releases its players; returning to Shorts starts a fresh screen. A video opened from Downloads
+plays on top of the Downloads tab, so Back returns there. Home's entry stays in the back
 stack the whole time, so its ViewModel and its saved grid position survive switching tabs. The
 chrome is dark while Shorts is selected, because Shorts always uses the dark color scheme.
 
@@ -248,9 +309,9 @@ The project is built with Claude Code as the agent throughout.
   cropped to fill the page.
 - **Static chips.** All, Music, and Live filter the loaded feed locally rather than querying
   the API. Live matches streams with no fixed duration, so a live music stream appears under both.
-- **Player actions are stubs.** Like and Subscribe toggle only for the current screen and are not
-  saved. Share shows a "coming soon" message. Download is shown disabled until the downloads
-  task; it never shows fake progress.
+- **Player actions are stubs, except Download.** Like and Subscribe toggle only for the current
+  screen and are not saved. Share shows a "coming soon" message. Download is real (see
+  [Offline downloads](#offline-downloads)).
 - **Shorts actions are stubs.** Like toggles and counts the user's like for as long as the Shorts
   screen lasts. Comment and Share show "coming soon" messages.
 - **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
@@ -264,7 +325,7 @@ The project is built with Claude Code as the agent throughout.
   light headers will need per-screen system bar styling.
 - Text uses the default font instead of the rounded display font in the mockups.
 - The mockup's two header icons are not shown, because search and the profile entry do not exist
-  yet. Profile and Downloads join the navigation shell in later tasks.
+  yet. Profile joins the navigation shell in the next task.
 - A thumbnail that failed to load while offline keeps its placeholder until its card scrolls out
   and back, or the screen is reopened; Coil does not retry when the connection returns.
 - The feed's error state is covered by unit tests but cannot be triggered on a device, because
@@ -281,3 +342,12 @@ The project is built with Claude Code as the agent throughout.
 - Shorts has no progress bar and does not remember its page after you leave it; it starts from the
   first short each time.
 - Selecting the Shorts tab again does not scroll back to the first short.
+- Downloads always save the up-to-480p rendition and may use mobile data; there is no quality or
+  Wi-Fi-only setting yet.
+- Offline, the Downloads tab and the player show a thumbnail only if Coil cached it while online;
+  otherwise the placeholder shows. Thumbnails are not saved with the download.
+- Cancelling from the player's progress ring or the Downloads row deletes the partial download
+  without asking; only finished downloads ask before removal.
+- The notification permission is requested from the Download action. If it is denied, downloads
+  still run without a notification; a later Download tap asks again until Android stops showing
+  the prompt (after a second denial), and there is no in-app explanation of why it is useful.

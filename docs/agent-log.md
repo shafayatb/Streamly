@@ -133,3 +133,102 @@ itself.
   landscape, and tablet layouts, offline errors with recovery, and `Activities: 1`.
 - **Commits:** `fe913fb`, `2b9fcd4`, `5adedd8`, `a6cb8e7`, `29627fb`, `2f4e290`, `fe6b967`,
   `96ade1a`, `9cb1ec1`, `a5058aa`.
+
+### 6. Offline downloads — October 2
+
+- **Branch:** `feature/downloads`.
+- **Plan:** [`docs/plans/2026-10-03-downloads.md`](plans/2026-10-03-downloads.md), the agreed design
+  and the implementation plan in one file.
+- **Prompt:** real Media3 downloads with progress, offline playback through the normal player, and
+  removal; a Player Download action and a Downloads screen per mockup 05.
+- **How the agent worked:** the first task to follow the full workflow.
+  - **Brainstorming (superpowers *brainstorming*).** The agent read the references, mockup 05, and
+    the Media3 1.11 offline sources first, then asked the reviewer the five open questions one at a
+    time. Decisions: the best rendition up to 480p, any network, a confirmation dialog for removal,
+    a progress ring that cancels, and Downloads as the third tab. It then proposed three
+    approaches; the reviewer chose a download tracker inside `:core:media` that the player
+    consults. The design was approved in four sections.
+  - **Plan (superpowers *writing-plans*).** Seven tasks with test-first steps and code, a Review
+    Focus list of risks no unit test covers, and the commit sequence. The reviewer approved the
+    plan and chose inline execution with one fresh review of the whole branch at the end.
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** Each piece of logic
+    started with a failing test, watched to fail for the right reason before the code was written:
+    the domain model, the Media3 state mapping and stored metadata, the Player download intents,
+    `formatBytes`, and `DownloadsViewModel`. A ledger recorded each task and every deviation.
+  - **Verify (superpowers *verification-before-completion*).** Build, `check`, and the device
+    journeys below, before any claim of completion.
+- **Decisions:**
+  - **Why the player must know about downloads.** Reading the Media3 sources showed that the cache
+    alone does not make offline playback work: with the network off, `HlsMediaSource` picks a
+    variant from its bandwidth estimate, usually one that was never downloaded. A completed
+    download therefore plays `DownloadRequest.toMediaItem()`, whose stream keys restrict the
+    playlist to the saved variant. The check lives in `:core:media`, so stream keys never reach
+    the domain or the UI.
+  - **One cache, one database.** `DownloadManager` writes into `MediaCache`'s `SimpleCache` and
+    shares its `StandaloneDatabaseProvider`; the media cache exposes the provider instead of
+    creating a second one.
+  - **Progress is polled** every 500 ms only while something is downloading. The download index is
+    read once off the main thread (completed and failed downloads are not in
+    `getCurrentDownloads()`), and listener events that arrive during that read are buffered and
+    applied after it.
+  - **No scheduler** (a change from the agreed design, flagged in the plan): Media3 never calls
+    `getScheduler()` on Android 12+, where the service stays in the foreground until the network
+    returns, so `null` gives the same behavior on every version without a job service or the boot
+    permission.
+  - **Rulings during the build** (recorded in the ledger): `C.PERCENTAGE_UNSET` is an `Int` in
+    Media3 1.11, so any negative percent maps to "unknown"; `FeedMessage`'s action became optional
+    for the Downloads empty state; the "Ready to play" green is darker in light mode for contrast;
+    the Download action is slightly wider than Like and Share so "Downloaded" fits on a 360 dp phone.
+- **Problems found:**
+  - Two plan defects caught by the failing-test step: the `C.PERCENTAGE_UNSET` type, and a test that
+    compared `42.7f / 100f` with `0.427f` (Float rounding). Both were fixed in the test or the
+    mapping, not by weakening the behavior.
+  - On the Galaxy A04 (360 dp wide), "Downloaded" was truncated to "Downloa…". The agent widened the
+    Download action and re-checked it on the device.
+  - The early device smoke test (run before the Downloads screen existed) confirmed that the media
+    layer worked offline before any UI was built on it.
+- **Verification:** 164 host tests (32 new: domain 1, media 8, Player downloads 10, Downloads
+  ViewModel 12, `formatBytes` 1); `./gradlew check` green with only the 7 lint warnings that predate
+  this work. On the emulator (Android 16) and the Galaxy A04 (Android 14):
+  - Real progress: the Player ring, the Downloads row, and the notification agreed (for example 18%
+    in the player and 20% in the notification; 5% · 4.5 MB in the row and 4% in the notification).
+  - Background: 19% → 38% in 15 s (emulator) and 26% → 78% (A04) as a `dataSync` foreground service.
+  - Force-stop mid-download, relaunch: resumed from 45% to 52%; completed downloads still listed.
+    Rotation and the remove dialog survive configuration changes.
+  - Offline: `Playing download big-buck-bunny (1 stream keys)` at 848x480; seek to 619 s, played to
+    `ENDED` at 634.6 s; seek to 317 s; zero `loadError` lines. The fMP4 stream with separate audio
+    played its 768x432 variant with 2 stream keys; the Shaka stream 640x480 with 3.
+  - Process killed on the Player while offline, then relaunched: restored onto the Player and played
+    the download (Review Focus 2).
+  - Removal: the cache went from 78 MB to 8.6 MB (emulator) and 77 MB to 8.4 MB (A04); the storage
+    line dropped; the removed video then failed offline with the error overlay.
+  - "Waiting for network" in the row and the notification while offline; the "Couldn’t start the
+    download" message when starting offline; cancel from a row; live videos have no Download action;
+    the download ran with notifications denied.
+  - Regression: Shorts kept 2 `ExoPlayerImpl … Init` lines after 10 swipes with one AudioTrack
+    started; a non-downloaded video streamed its top variant (1680x750) with ABR; `Activities: 1`
+    after player → Back → Downloads → 6 rotations on both devices. Dark, light, phone landscape
+    (rail with a two-column grid), and a 2400x1800 tablet.
+- **Fresh review of the whole branch** (one reviewer subagent on the most capable model, as the
+  reviewer agreed at plan time). No critical issues; it confirmed the layering, the shared cache
+  and database, the threading against the Media3 sources, and all five Review Focus items. The
+  agent fixed four findings; three were proven by a test or device check that failed first:
+  - **TalkBack could not cancel from the Player.** The accessibility label used `onClick { false }`,
+    which replaced the button's click. A new Compose device test
+    (`DownloadButtonAccessibilityTest`) failed with no intent sent, and passed after `action = null`.
+    The test also needed Espresso 3.7.0, because the version Compose's test library pulls in crashes
+    on Android 16.
+  - **Cancel was ignored while a download was starting, and Back dropped the start.** The
+    `DownloadHelper` pass now runs in `MediaDownloads`' application scope, `remove()` cancels a
+    start in progress, and the Player cancels its own wait (`cancellingWhileStartingStopsTheStart`).
+    On the emulator: Download then Cancel within 150 ms sent no download to the service, and
+    Download then Back within 150 ms still downloaded (29% · 38 MB in the Downloads tab).
+  - **Unexpected errors while starting would crash** instead of showing a message; they now map to
+    `DownloadError.UNKNOWN`. This one has no test: `MediaDownloads` needs Media3 and Android, so it
+    is not host-tested.
+  - **Medium windows (600–840 dp) showed one stretched column.** The grid now uses the same
+    `WindowSizeClass` columns as the feed; checked at 700 dp (one column before, two after).
+  - Six minor findings were deferred and listed in the handoff (for example an unguarded fallback
+    index read and a `formatBytes` unit boundary).
+- **Final count:** 165 host tests and 1 device test; `./gradlew check` green.
+- **Commits:** `82d2ac2`, `9bf2390`, `c99e8c3`, `bd5db06`, `59e4770`, `6831ed5`, and this docs commit.
