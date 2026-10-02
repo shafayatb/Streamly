@@ -1,0 +1,28 @@
+package com.shafayatb.streamly.core.media.di
+
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import com.shafayatb.streamly.core.media.cache.MediaCache
+import com.shafayatb.streamly.core.media.player.ExoVideoPlayer
+import com.shafayatb.streamly.domain.player.VideoPlayer
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.Module
+import org.koin.dsl.bind
+import org.koin.dsl.module
+import org.koin.dsl.onClose
+
+public val mediaModule: Module = module {
+    single { MediaCache(androidContext()) } onClose { it?.release() }
+
+    // Application-scoped: one player for every normal-video screen, released only with Koin.
+    single {
+        ExoVideoPlayer(
+            context = androidContext(),
+            dataSourceFactory = get<MediaCache>().playbackDataSourceFactory(),
+            logEvents = androidContext().isDebuggable(),
+        )
+    } onClose { it?.release() } bind VideoPlayer::class
+}
+
+private fun Context.isDebuggable(): Boolean =
+    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
