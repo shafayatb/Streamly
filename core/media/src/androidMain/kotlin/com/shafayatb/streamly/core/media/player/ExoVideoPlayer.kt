@@ -103,6 +103,10 @@ public class ExoVideoPlayer internal constructor(
         val player = player ?: return
         player.stop()
         player.clearMediaItems()
+        // The surface belongs to the screen that is leaving. media3-ui-compose detaches it only
+        // if that screen stays composed after the video unloads, which a popped screen does not,
+        // so this app-wide player would otherwise keep the screen's destroyed Activity alive.
+        player.clearVideoSurface()
         loadedVideoIsLive = false
         publishState()
     }
