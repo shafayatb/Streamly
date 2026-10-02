@@ -13,6 +13,7 @@ import com.shafayatb.streamly.home.HomeRoot
 import com.shafayatb.streamly.onboarding.OnboardingRoot
 import com.shafayatb.streamly.onboarding.email.EmailSignInRoot
 import com.shafayatb.streamly.player.PlayerRoot
+import com.shafayatb.streamly.profile.ProfileRoot
 import com.shafayatb.streamly.shorts.ShortsRoot
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -27,6 +28,7 @@ private val navigationConfiguration = SavedStateConfiguration {
             subclass(Route.Home::class)
             subclass(Route.Shorts::class)
             subclass(Route.Downloads::class)
+            subclass(Route.Profile::class)
             subclass(Route.Player::class)
         }
     }
@@ -73,6 +75,14 @@ fun AppNavigation(startRoute: Route) {
                     DownloadsRoot(
                         bottomInset = bottomInset,
                         onNavigateToPlayer = { videoId -> backStack.add(Route.Player(videoId)) },
+                    )
+                }
+                entry<Route.Profile> {
+                    ProfileRoot(
+                        bottomInset = bottomInset,
+                        onNavigateToDownloads = { backStack.selectTopLevel(Route.Downloads) },
+                        // Onboarding becomes the only destination: Back exits rather than returning.
+                        onNavigateToOnboarding = { backStack.resetTo(Route.Onboarding) },
                     )
                 }
                 entry<Route.Player> { route ->

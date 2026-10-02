@@ -6,6 +6,7 @@ import com.shafayatb.streamly.home.HomeViewModel
 import com.shafayatb.streamly.onboarding.OnboardingViewModel
 import com.shafayatb.streamly.onboarding.email.EmailSignInViewModel
 import com.shafayatb.streamly.player.PlayerViewModel
+import com.shafayatb.streamly.profile.ProfileViewModel
 import com.shafayatb.streamly.shorts.ShortsViewModel
 import kotlin.time.Clock
 import org.koin.core.module.Module
@@ -22,6 +23,7 @@ val presentationModule: Module = module {
     viewModelOf(::HomeViewModel)
     viewModelOf(::ShortsViewModel)
     viewModelOf(::DownloadsViewModel)
+    viewModelOf(::ProfileViewModel)
     viewModel { params ->
         PlayerViewModel(
             videoId = params.get(),
