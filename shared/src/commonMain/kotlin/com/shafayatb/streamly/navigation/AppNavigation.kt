@@ -59,6 +59,7 @@ fun AppNavigation(startRoute: Route) {
                 PlayerRoot(
                     videoId = route.videoId,
                     onNavigateBack = { backStack.popIfNotRoot() },
+                    onNavigateToVideo = { videoId -> backStack.replaceTop(Route.Player(videoId)) },
                 )
             }
         },

@@ -32,7 +32,29 @@
     <string name="video_card_metadata">%1$s · %2$s · %3$s</string>
     <string name="age_just_now">Just now</string>
 
-    <string name="player_coming_soon">Playback is coming soon</string>
+    <string name="player_metadata">%1$s · %2$s</string>
+    <string name="player_subscribe">Subscribe</string>
+    <string name="player_subscribed">Subscribed</string>
+    <string name="player_like">Like</string>
+    <string name="player_liked">Liked</string>
+    <string name="player_share">Share</string>
+    <string name="player_download">Download</string>
+    <string name="player_download_unavailable">Downloads are coming soon</string>
+    <string name="player_share_unavailable">Sharing is coming soon.</string>
+    <string name="player_up_next">Up next</string>
+    <string name="player_up_next_empty">Nothing else to watch yet.</string>
+    <string name="player_loading">Loading video</string>
+    <string name="player_buffering">Buffering</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_replay">Replay</string>
+    <string name="cd_mute">Mute</string>
+    <string name="cd_unmute">Unmute</string>
+    <string name="cd_seek">Playback position</string>
+    <string name="player_error_network">Playback stopped. Check your connection and try again.</string>
+    <string name="player_error_source">This video isn’t available right now.</string>
+    <string name="player_error_format">This video can’t be played on this device.</string>
+    <string name="player_error_unknown">Something went wrong while playing this video.</string>
     <string name="action_retry">Try again</string>
 
     <string name="error_email_blank">Enter your email address.</string>
