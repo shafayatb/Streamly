@@ -1,8 +1,8 @@
 package com.shafayatb.streamly.data.di
 
+import com.shafayatb.streamly.data.local.createPreferencesDataStore
 import com.shafayatb.streamly.data.network.createApiHttpClient
 import com.shafayatb.streamly.data.session.DataStoreSessionRepository
-import com.shafayatb.streamly.data.session.createSessionDataStore
 import com.shafayatb.streamly.data.shorts.KtorShortsRepository
 import com.shafayatb.streamly.data.video.KtorVideoRepository
 import com.shafayatb.streamly.data.video.catalog.CatalogMockApi
@@ -18,8 +18,9 @@ import org.koin.dsl.module
 
 public val dataModule: Module = module {
     single {
-        createSessionDataStore(
+        createPreferencesDataStore(
             context = androidContext(),
+            name = "session",
             scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         )
     }
