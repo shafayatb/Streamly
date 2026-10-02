@@ -29,6 +29,7 @@ public val mediaModule: Module = module {
         ExoVideoPlayer(
             context = androidContext(),
             dataSourceFactory = get<MediaCache>().playbackDataSourceFactory(),
+            offlineMediaItems = get(),
             logEvents = androidContext().isDebuggable(),
         )
     } onClose { it?.release() } bind VideoPlayer::class
