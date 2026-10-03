@@ -13,6 +13,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -289,5 +290,41 @@ class AccountDownloadRepositoryTest {
 
         assertEquals(Result.Success(Unit), repository().remove("v"))
         assertEquals(emptyList(), device.removed)
+    }
+
+    @Test
+    fun ownerRecordsWithNoDownloadArePrunedAtLaunch() = runTest(UnconfinedTestDispatcher()) {
+        device.set(download("done"), download("waiting", DownloadStatus.WAITING_FOR_WIFI))
+        ownership.stored.value = mapOf(
+            "done" to setOf(anikaKey),
+            "waiting" to setOf(janeKey),
+            "gone" to setOf(anikaKey, janeKey),
+        )
+
+        repository()
+
+        assertEquals(mapOf("done" to setOf(anikaKey), "waiting" to setOf(janeKey)), ownership.stored.value)
+    }
+
+    @Test
+    fun nothingIsPrunedWhenTheDownloadsCannotBeRead() = runTest(UnconfinedTestDispatcher()) {
+        device.fail(DataError.Local.UNKNOWN)
+        ownership.stored.value = mapOf("v" to setOf(anikaKey))
+
+        repository()
+
+        assertEquals(mapOf("v" to setOf(anikaKey)), ownership.stored.value)
+    }
+
+    @Test
+    fun aDownloadStartedBeforeTheOwnersAreReadKeepsItsOwner() = runTest(UnconfinedTestDispatcher()) {
+        ownership.loaded.value = false
+        device.gate = CompletableDeferred()
+        val repository = repository()
+        backgroundScope.launch { repository.download(video("new")) }
+
+        ownership.loaded.value = true
+
+        assertEquals(mapOf("new" to setOf(anikaKey)), ownership.stored.value)
     }
 }

@@ -53,6 +53,9 @@ public class AccountDownloadRepository(
     // This repository's own starts, so remove() can stop one before it queues a download nobody owns.
     private val starts = mutableMapOf<String, Job>()
 
+    // Set by the first start in this run: its owner is recorded before the device lists the download.
+    private var hasStarted = false
+
     override val downloads: Flow<Result<List<VideoDownload>, DataError.Local>> =
         combine(device.downloads, account, ownership.owners) { downloads, account, owners ->
             ownedBy(account, downloads, owners)
@@ -80,11 +83,28 @@ public class AccountDownloadRepository(
             }.filterNotNull().first()
             ids.filter { owners[it].isNullOrEmpty() }.forEach { ownership.addOwner(it, account) }
         }
+        // Owner records whose download is gone, e.g. a video downloaded again before Media3
+        // reported its removal, are dropped once per run. A start in this run skips it: a new
+        // download's owner is recorded before the device lists it.
+        scope.launch {
+            val (ids, owners) = combine(device.downloads, ownership.owners) { downloads, owners ->
+                val ids = (downloads as? Result.Success)?.data?.map { it.videoId }?.toSet()
+                val known = (owners as? Result.Success)?.data
+                if (ids == null || known == null) null else ids to known
+            }.filterNotNull().first()
+            owners.filterKeys { it !in ids }.forEach { (videoId, accounts) ->
+                accounts.forEach { account ->
+                    if (hasStarted) return@launch
+                    ownership.removeOwner(videoId, account)
+                }
+            }
+        }
     }
 
     override suspend fun download(video: Video): EmptyResult<DownloadError> {
         if (video.isLive) return Result.Failure(DownloadError.LIVE_NOT_SUPPORTED)
         val account = account.first() ?: return Result.Failure(DownloadError.UNKNOWN)
+        hasStarted = true
         // In this object's scope, like the device's own start: leaving the screen must not stop
         // between recording the owner and queuing the download.
         val start = scope.async { start(video, account) }
