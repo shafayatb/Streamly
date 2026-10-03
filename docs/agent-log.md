@@ -402,3 +402,100 @@ itself.
   could let the tallest accented capitals draw outside the tightest styles; `App`'s unused
   `koinViewModel()` default; and the light-only post-splash window theme, which predates this task.
 - **Commits:** `ab20b55`, `d68b57b`, `a30e051`, `31cb319`, and this docs commit.
+
+### 9. Watch history and resume — October 3
+
+- **Branch:** `feature/watch-history`.
+- **Plan:** [`docs/plans/2026-10-03-watch-history.md`](plans/2026-10-03-watch-history.md), the agreed
+  design and the implementation plan in one file.
+- **Prompt:** replace Profile's "Watch history is coming soon" stub with a real history. The
+  handoff listed the open questions (what counts as watched, per account or not, resume position,
+  storage, the screen, offline) and asked the agent not to decide them silently.
+- **How the agent worked:** the same workflow as tasks 6–8.
+  - **Brainstorming (superpowers *brainstorming*).** The agent read the references, the task 6–8
+    log, and the player, session, Profile, download-ownership, and navigation code. It classified
+    the task as architectural and asked one question at a time. The reviewer chose:
+    - **Resume and a list**, not a list only, because resume is graded Media3 work.
+    - **Long-form only, recorded when playback actually starts**; live listed without a position.
+    - **Per account with guest history**, like downloads (mockup 07's "sign in again to see your
+      downloads and history").
+    - **DataStore with one JSON list per account**, with a metadata snapshot so it lists offline.
+    - **A screen with remove-one and Clear all.**
+
+    The agent proposed three places for the logic. The reviewer chose the first: the Player screen
+    drives recording and a domain service writes it; the alternatives were a global recorder
+    watching the shared player, or persistence inside `:core:media`. The design was approved in
+    three sections.
+  - **Plan (superpowers *writing-plans*).** Seven tasks with test-first steps and code, five Review
+    Focus risks each tied to a named test (live edge, Back during the read, replaced screens,
+    accounts, process death and offline), a ten-step device script, and a six-commit sequence. The
+    reviewer approved it and chose inline execution with one fresh review at the end.
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** Every piece started with a
+    failing test. The first failures were compile errors, so the agent also broke the code on
+    purpose for the Review Focus rules (no live guard, no owner check, saving after `stop()`, and
+    in the Compose test a Clear all that always shows and a no-op remove) and checked that exactly
+    the intended test failed each time. A ledger recorded each task and ruling.
+- **Decisions:**
+  - **Resume through `setMediaItem(item, startPositionMs)`.** `VideoPlayer.load` gained a
+    `startPosition`. The first frame drawn is the resume point, with no 0:00 flash and no extra
+    seek, and the offline download item resumes the same way. Live never receives a position
+    (guarded in both the ViewModel and `ExoVideoPlayer`), so it joins at the live edge.
+  - **The rules live in one pure class.** `WatchHistoryEntry` decides resume (at least 5 s; in the
+    last 10 s or past 95% it counts as finished and starts over) and the progress bar.
+  - **An ordered write queue on an application scope.** `AccountWatchHistory` sends writes through
+    a channel consumed in order, so the save made in `PlayerViewModel.onCleared` lands after
+    `viewModelScope` is cancelled, and two saves never land out of order.
+  - **Recording moments the screen already knows:** first play, pause, background, end, a 10 s
+    checkpoint, up next, and Back, each skipped if the position has not moved.
+  - **Rulings during the build** (from the ledger): the device run counts 165 tests, not the plan's
+    135, because it also runs every shared common test; the new strings went to the end of the
+    file rather than inside the Profile block.
+- **Problems found:**
+  - On the emulator the first try at Acoustic → up next "Lo-fi radio, live" → Back after 8 s left
+    no entry. Two repeats recorded it. The likely cause is that the live stream had not started
+    within 8 s, and by design a video that never plays is not recorded; it was not reproduced.
+  - The agent's first remove tap in the race check landed on the row's padding, and a tap during
+    the Player's exit animation lands on the outgoing Player; both were redone with measured
+    coordinates.
+- **Verification:**
+  - **Tests.** `./gradlew check` green: 269 host tests (domain 48, data 39, shared 155, media 27),
+    lint 0 errors and the 4 version notices. `:shared:connectedAndroidDeviceTest` on the emulator:
+    166 tests, 0 failures, including the 4 new `WatchHistoryScreenTest` tests.
+  - **Emulator (Android 16, Anika):**
+    - The empty state with no Clear all and no tab bar; Back returns to Profile.
+    - Weekly recap played to 0:39, then reopened from History: the controls read 0:39 from the
+      first frame, and the stream's burned-in clock read 00:00:40.56 about 1 s later; a screen
+      recording showed no 0:00 frame. Saved at 1:28 by an up-next pick and resumed there.
+    - Live: listed with LIVE and no bar, stored with no position; reopened at the live edge (the
+      stream's clock 14 s behind the device clock, normal HLS latency).
+    - Played to the end: a full bar, and reopening started at 0:00.
+    - Process death: backgrounded at 2:06, `am kill`, reopened from Recents in a new process on the
+      Player at 2:11.
+    - Offline: downloaded Acoustic, played to 0:33, network off; History listed it, and reopening
+      logged `Playing download acoustic-one-take (3 stream keys)` and resumed at about 0:33.
+    - Remove and clear: the X removed a row at once; the Clear all dialog survived rotation;
+      Cancel kept everything; Clear emptied the list and the store.
+    - Accounts: after sign-out the guest's history was empty and the guest's Acoustic started at 0
+      (Anika had 13.9 s); signing in again as Anika showed only her entry, and she resumed from her
+      44 s while the guest's 8.6 s stayed separate.
+    - Layout: a 700 dp window showed two columns, a 2400x1800 tablet and phone landscape three.
+    - Regression: Shorts kept 2 players after six swipes and never entered the history; one
+      started AudioTrack while playing and none after Back; `Activities: 1` after six rotations.
+  - **Galaxy A04 (Android 14, 360 dp, abc@gmail.com):** the empty state; Tears of Steel played 22 s
+    and resumed offline at 0:19 from its download (`Playing download tears-of-steel (1 stream
+    keys)`); dark and light History; an up-next pick added Big Buck Bunny on top and the X removed
+    it; `Activities: 1` after six rotations, with no started audio after Back.
+- **Fresh review of the whole branch** (one reviewer subagent on Fable). No critical or important
+  issues; it confirmed all five Review Focus items, the layering, and the Media3 usage. The agent
+  re-graded one minor finding to important and fixed it, proven by tests that failed first:
+  - **A video removed right after leaving the Player could come back,** because the Player's last
+    saves inserted the entry again. Now only the first play adds a video; later saves call
+    `updateProgress`, which `DataStoreWatchHistoryStore.update` applies only if the entry still
+    exists, checked inside the same DataStore edit. Five tests (domain, data, and Player) pin it,
+    and reverting each layer failed exactly its test. On the emulator, removing a row right after
+    Back kept it removed.
+  - Six minor findings were deferred to the handoff: the write loop has no per-item isolation,
+    a double tap pushes History twice, the progress bar has no TalkBack semantics, hiding the
+    Player writes twice, the device test starts with the dialog already shown, and `DataModule`
+    uses `Clock.System`.
+- **Commits:** `ed901bd`, `208fc0d`, `0585258`, `5debf6b`, `987f68b`, and this docs commit.
