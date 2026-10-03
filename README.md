@@ -48,7 +48,7 @@ Tablet (a 1200x900 dp window) and phone landscape (emulator, benchmark build):
 
 ## Install the APK
 
-**[Download the APK from Google Drive](https://drive.google.com/file/d/1lorGC2GgANaxj1OnCCQ2paTwjDb4LdxM/view?usp=drive_link)**
+**[Download the APK from Google Drive](https://drive.google.com/file/d/1_WCdkjf8RLrwXudc_ypo9xTjBY2qFww4/view?usp=sharing)**
 (3.4 MB). The same file is in the repository as
 [`apk/streamly-1.0-benchmark.apk`](apk/streamly-1.0-benchmark.apk). It runs on Android 7.0
 (API 24) or newer. It is the release build minified with R8 and signed with a debug key, so it
