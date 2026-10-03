@@ -78,6 +78,7 @@ import streamly.shared.generated.resources.profile_sign_out
 fun ProfileRoot(
     bottomInset: Dp,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -88,6 +89,7 @@ fun ProfileRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             ProfileEvent.NavigateToDownloads -> onNavigateToDownloads()
+            ProfileEvent.NavigateToHistory -> onNavigateToHistory()
             ProfileEvent.NavigateToOnboarding -> onNavigateToOnboarding()
             is ProfileEvent.ShowMessage -> scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()

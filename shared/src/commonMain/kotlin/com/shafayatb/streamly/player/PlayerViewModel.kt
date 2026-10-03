@@ -10,6 +10,7 @@ import com.shafayatb.streamly.core.presentation.toUiText
 import com.shafayatb.streamly.domain.download.DownloadRepository
 import com.shafayatb.streamly.domain.download.DownloadStatus
 import com.shafayatb.streamly.domain.download.VideoDownload
+import com.shafayatb.streamly.domain.history.WatchHistoryRepository
 import com.shafayatb.streamly.domain.player.PlaybackState
 import com.shafayatb.streamly.domain.player.PlaybackStatus
 import com.shafayatb.streamly.domain.player.VideoPlayer
@@ -20,6 +21,8 @@ import com.shafayatb.streamly.domain.video.Video
 import com.shafayatb.streamly.domain.video.VideoRepository
 import com.shafayatb.streamly.home.toCardUi
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -41,13 +44,15 @@ import streamly.shared.generated.resources.player_share_unavailable
  *
  * The player outlives this screen, so the ViewModel only controls it while it still has
  * [videoId] loaded. A screen being replaced (for example by an up-next pick) therefore cannot
- * pause or stop the video that replaced it.
+ * pause or stop the video that replaced it. It also resumes the video from the account's watch
+ * history and records how far it got.
  */
 class PlayerViewModel(
     private val videoId: String,
     private val videoRepository: VideoRepository,
     private val videoPlayer: VideoPlayer,
     private val downloadRepository: DownloadRepository,
+    private val watchHistory: WatchHistoryRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -85,9 +90,15 @@ class PlayerViewModel(
     // Set when the screen hid while playing, so playback resumes only if it was playing.
     private var resumeWhenShown = false
 
+    // Set once this screen's video has actually played: only then does it belong in the history.
+    private var hasPlayed = false
+    private var lastRecordedPosition: Duration? = null
+    private var wasPlayWhenReady = false
+
     private val ownsPlayer: Boolean get() = videoPlayer.state.value.videoId == videoId
 
     init {
+        viewModelScope.launch { videoPlayer.state.collect(::trackHistory) }
         loadDetails()
         loadUpNext()
         viewModelScope.launch {
@@ -127,6 +138,8 @@ class PlayerViewModel(
 
     override fun onCleared() {
         // The screen is gone for good (Back, or replaced). The player stays for the next screen.
+        // Saved first: stopping unloads the video and its position.
+        recordProgress()
         if (ownsPlayer) videoPlayer.stop()
     }
 
@@ -136,6 +149,7 @@ class PlayerViewModel(
     }
 
     private fun selectUpNext(nextVideoId: String) {
+        recordProgress()
         // Silence this video now rather than when the replaced screen finishes leaving.
         if (ownsPlayer) videoPlayer.stop()
         send(PlayerEvent.NavigateToVideo(nextVideoId))
@@ -178,13 +192,52 @@ class PlayerViewModel(
             videoPlayer.pause()
             resumeWhenShown = true
         }
+        recordProgress()
     }
 
-    private fun startPlayback(video: Video) {
+    private suspend fun startPlayback(video: Video) {
         if (ownsPlayer) return
+        val start = if (video.isLive) Duration.ZERO else watchHistory.resumePosition(video.id)
         // A video that finishes loading while the app is in the background waits to be seen.
-        videoPlayer.load(video, playWhenReady = isScreenVisible)
+        videoPlayer.load(video, playWhenReady = isScreenVisible, startPosition = start)
         resumeWhenShown = !isScreenVisible
+    }
+
+    /** Records the moments history needs: the first play, a pause, the end, and a checkpoint while playing. */
+    private fun trackHistory(playback: PlaybackState) {
+        if (playback.videoId != videoId) return
+        val paused = wasPlayWhenReady && !playback.playWhenReady
+        wasPlayWhenReady = playback.playWhenReady
+        when {
+            !hasPlayed -> if (playback.isPlaying) {
+                hasPlayed = true
+                recordProgress(playback, isFirstPlay = true)
+            }
+            paused || playback.isEnded -> recordProgress(playback)
+            playback.isPlaying && isCheckpointDue(playback.position) -> recordProgress(playback)
+        }
+    }
+
+    private fun isCheckpointDue(position: Duration): Boolean {
+        val last = lastRecordedPosition ?: return true
+        return (position - last).absoluteValue >= HISTORY_CHECKPOINT
+    }
+
+    /**
+     * Saves where this screen's video is, once it has played and only if the position moved. Only the
+     * first play adds the video; these saves update it, so one the user removed stays removed.
+     */
+    private fun recordProgress(playback: PlaybackState = videoPlayer.state.value, isFirstPlay: Boolean = false) {
+        val video = loadedVideo ?: return
+        if (!hasPlayed || playback.videoId != videoId) return
+        val position = if (video.isLive) Duration.ZERO else playback.position
+        if (position == lastRecordedPosition) return
+        lastRecordedPosition = position
+        if (isFirstPlay) {
+            watchHistory.record(video, position, playback.duration)
+        } else {
+            watchHistory.updateProgress(video, position, playback.duration)
+        }
     }
 
     private fun loadDetails() {
@@ -219,6 +272,9 @@ class PlayerViewModel(
         viewModelScope.launch { _events.send(event) }
     }
 }
+
+// How often a playing video's position is saved, so a crash or process death loses little.
+private val HISTORY_CHECKPOINT = 10.seconds
 
 internal fun Video.toDetailsUi(now: Instant): VideoDetailsUi = VideoDetailsUi(
     id = id,

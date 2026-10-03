@@ -25,4 +25,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data class Player(val videoId: String) : Route
+
+    @Serializable
+    data object WatchHistory : Route
 }

@@ -58,7 +58,7 @@ public class ExoVideoPlayer internal constructor(
     internal val exoPlayer: ExoPlayer
         get() = player ?: buildPlayer().also { player = it }
 
-    override fun load(video: Video, playWhenReady: Boolean) {
+    override fun load(video: Video, playWhenReady: Boolean, startPosition: Duration) {
         loadedVideoIsLive = video.isLive
         // A finished download plays the rendition it saved: its stream keys keep the player from
         // choosing a variant that is not on the device, which offline would fail.
@@ -68,7 +68,13 @@ public class ExoVideoPlayer internal constructor(
             .setMimeType(MimeTypes.APPLICATION_M3U8)
             .build()
         exoPlayer.run {
-            setMediaItem(mediaItem)
+            // Starting at the position avoids drawing 0:00 first. Live keeps the default position,
+            // which is its live edge; any explicit one would start behind it.
+            if (startPosition > Duration.ZERO && !video.isLive) {
+                setMediaItem(mediaItem, startPosition.inWholeMilliseconds)
+            } else {
+                setMediaItem(mediaItem)
+            }
             this.playWhenReady = playWhenReady
             prepare()
         }

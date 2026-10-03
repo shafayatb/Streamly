@@ -2,6 +2,7 @@ package com.shafayatb.streamly.di
 
 import com.shafayatb.streamly.app.AppViewModel
 import com.shafayatb.streamly.downloads.DownloadsViewModel
+import com.shafayatb.streamly.history.WatchHistoryViewModel
 import com.shafayatb.streamly.home.HomeViewModel
 import com.shafayatb.streamly.onboarding.OnboardingViewModel
 import com.shafayatb.streamly.onboarding.email.EmailSignInViewModel
@@ -24,12 +25,14 @@ val presentationModule: Module = module {
     viewModelOf(::ShortsViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::WatchHistoryViewModel)
     viewModel { params ->
         PlayerViewModel(
             videoId = params.get(),
             videoRepository = get(),
             videoPlayer = get(),
             downloadRepository = get(),
+            watchHistory = get(),
             clock = get(),
         )
     }

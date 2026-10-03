@@ -22,7 +22,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import streamly.shared.generated.resources.Res
-import streamly.shared.generated.resources.profile_history_soon
 import streamly.shared.generated.resources.profile_settings_soon
 import streamly.shared.generated.resources.profile_sign_out_failed
 
@@ -158,14 +157,21 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun historyAndSettingsAreComingSoon() = runTest {
+    fun watchHistoryOpensTheHistory() = runTest {
         val viewModel = ProfileViewModel(FakeSessionRepository(anika))
 
         viewModel.events.test {
             viewModel.onIntent(ProfileIntent.OpenHistory)
-            viewModel.onIntent(ProfileIntent.OpenSettings)
+            assertEquals(ProfileEvent.NavigateToHistory, awaitItem())
+        }
+    }
 
-            assertEquals(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_history_soon)), awaitItem())
+    @Test
+    fun settingsAreComingSoon() = runTest {
+        val viewModel = ProfileViewModel(FakeSessionRepository(anika))
+
+        viewModel.events.test {
+            viewModel.onIntent(ProfileIntent.OpenSettings)
             assertEquals(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_settings_soon)), awaitItem())
         }
     }

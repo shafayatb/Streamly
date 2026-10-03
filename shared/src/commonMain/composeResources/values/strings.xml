@@ -120,7 +120,6 @@
     <string name="profile_settings">Settings</string>
     <string name="profile_sign_out">Sign out</string>
     <string name="profile_sign_in">Sign in</string>
-    <string name="profile_history_soon">Watch history is coming soon.</string>
     <string name="profile_settings_soon">Settings are coming soon.</string>
     <string name="profile_sign_out_failed">Couldn’t sign out. Please try again.</string>
     <string name="profile_sign_out_title">Sign out?</string>
@@ -128,4 +127,18 @@
     <string name="profile_leave_guest_title">Leave guest mode?</string>
     <string name="profile_leave_guest_body">Your guest downloads stay on this device for the next time you continue as a guest.</string>
     <string name="profile_cancel">Cancel</string>
+
+    <string name="history_title">Watch history</string>
+    <string name="history_clear_all">Clear all</string>
+    <string name="history_loading">Loading your watch history</string>
+    <string name="history_empty_title">No watch history yet</string>
+    <string name="history_empty_body">Videos you watch will show up here.</string>
+    <string name="history_error_title">Couldn’t load your history</string>
+    <string name="history_error_body">Something went wrong reading your watch history. Please try again.</string>
+    <string name="history_update_failed">Couldn’t update your watch history. Please try again.</string>
+    <string name="history_clear_title">Clear watch history?</string>
+    <string name="history_clear_body">Every video will be removed from this account’s history and will start from the beginning next time.</string>
+    <string name="history_clear_confirm">Clear</string>
+    <string name="history_clear_cancel">Cancel</string>
+    <string name="cd_remove_from_history">Remove from watch history</string>
 </resources>

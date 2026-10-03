@@ -15,7 +15,8 @@ Multiplatform, with an Android target only.
 > tab, and a notification; finished downloads play with the network off and can be removed.
 > Downloads belong to the account that saved them: signing out hides them, and signing in again
 > as the same account brings them back. Profile shows the account and signs out after a
-> confirmation, returning to onboarding. The app has its own launcher icon, a branded splash
+> confirmation, returning to onboarding. Watch history lists what each account has watched, with
+> its progress, and the player resumes a video where that account left off. The app has its own launcher icon, a branded splash
 > that stays until the stored session is read, and the mockups' typeface, Baloo Da 2.
 
 ## Setup
@@ -274,7 +275,7 @@ chrome is dark while Shorts is selected, because Shorts always uses the dark col
 
 Profile (mockup 06) is the fourth tab. `ProfileViewModel` reads `SessionRepository.session` and
 shows the initials, name, and email under a brand header, then rows for Downloads (which selects
-the Downloads tab), Watch history, Settings, and a red Sign out. In phone landscape the header
+the Downloads tab), Watch history (which opens the history), Settings, and a red Sign out. In phone landscape the header
 moves to a side panel; on wider windows the rows stay in a 640 dp column.
 
 Sign out opens the confirmation (mockup 07): "Sign out?" with Cancel and a red Sign out. The
@@ -287,6 +288,48 @@ account signs in again, and a download in progress keeps going in the background
 A guest sees a person icon, "Guest", and "Not signed in", and a primary "Sign in" row in place of
 Sign out. It asks "Leave guest mode?" (guest downloads stay for the next time you continue as a
 guest) and then opens onboarding.
+
+### Watch history
+
+Watch history is per account, like downloads: signing out hides it, signing in again as the same
+account shows it, and a guest has its own. The player resumes a video where that account left
+off.
+
+**Rules** (`WatchHistoryEntry` in `:domain`, host-tested):
+
+- A long-form video enters the history the first time it actually plays, not when the player
+  opens, so a stream that fails to load is never listed. Shorts are not recorded.
+- It resumes from the saved position if that is at least 5 s. In the last 10 s, or past 95% of
+  the length, the video counts as finished and starts over, as in video apps.
+- Live streams are listed (with a LIVE badge and no progress bar) but never resume, so they
+  always join at the live edge.
+
+**Recording.** `PlayerViewModel` already knows the moments that matter, so it saves the position
+the first time the video plays, on pause, when the app goes to the background, when the video
+ends, every 10 s of playback, and before it stops the player on Back or an up-next pick. A
+crash or process death therefore loses at most about 10 s. A replaced player screen never
+writes, by the same `PlaybackState.videoId` rule that keeps it from controlling the player. Only
+the first play adds a video to the history; later saves only update its entry, so a video removed
+while the player's last save is still on its way stays removed.
+
+**Resume.** Before loading, `PlayerViewModel` reads the saved position and calls
+`VideoPlayer.load(video, playWhenReady, startPosition)`. `ExoVideoPlayer` passes it to Media3's
+`setMediaItem(item, startPositionMs)`, so the first frame drawn is already the resume point (no
+0:00 flash and no extra seek), and a downloaded video resumes from its saved rendition offline.
+Live keeps the default position, its live edge. Leaving the screen while the position is still
+being read cancels the load, so nothing plays after the screen is gone.
+
+**Storage.** `AccountWatchHistory` (`:domain`) resolves the account from the session and queues
+writes, in order, on an application scope, so the save made as the player screen closes still
+lands. `DataStoreWatchHistoryStore` (`:data`) keeps one JSON list per account in its own
+`watch_history` DataStore file, newest first, at most 100 entries. Each entry stores the title,
+channel, thumbnail URL, and length, so the history lists offline and after a video leaves the
+catalog. A value that no longer decodes starts that account's history afresh.
+
+**Screen.** Profile's Watch history row opens it (no tab bar; Back returns to Profile). Each row
+shows the thumbnail with its length and a coral progress bar, the title, and the channel with
+when it was last watched; tapping it opens the player, which resumes. The X removes a row at
+once; "Clear all" asks first. Phones show a list, wider windows the feed's grid columns.
 
 ### Brand: icon, splash, and typeface
 
@@ -375,7 +418,7 @@ The project is built with Claude Code as the agent throughout.
 - **Player actions are stubs, except Download.** Like and Subscribe toggle only for the current
   screen and are not saved. Share shows a "coming soon" message. Download is real (see
   [Offline downloads](#offline-downloads)).
-- **Watch history and Settings are stubs.** Their Profile rows show a "coming soon" message.
+- **Settings is a stub.** Its Profile row shows a "coming soon" message.
 - **Shorts actions are stubs.** Like toggles and counts the user's like for as long as the Shorts
   screen lasts. Comment and Share show "coming soon" messages.
 - **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
@@ -408,6 +451,8 @@ The project is built with Claude Code as the agent throughout.
 - Shorts has no progress bar and does not remember its page after you leave it; it starts from the
   first short each time.
 - Selecting the Shorts tab again does not scroll back to the first short.
+- Watch history is stored on the device only, per account; with mocked sign-in there is nothing
+  to sync it to. Removing a row has no undo, and the history keeps the newest 100 videos.
 - Downloads always save the up-to-480p rendition and may use mobile data; there is no quality or
   Wi-Fi-only setting yet.
 - Offline, the Downloads tab and the player show a thumbnail only if Coil cached it while online;
