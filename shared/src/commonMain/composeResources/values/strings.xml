@@ -121,7 +121,6 @@
     <string name="profile_settings">Settings</string>
     <string name="profile_sign_out">Sign out</string>
     <string name="profile_sign_in">Sign in</string>
-    <string name="profile_settings_soon">Settings are coming soon.</string>
     <string name="profile_sign_out_failed">Couldn’t sign out. Please try again.</string>
     <string name="profile_sign_out_title">Sign out?</string>
     <string name="profile_sign_out_body">You’ll need to sign in again to see your downloads and history.</string>
@@ -142,4 +141,23 @@
     <string name="history_clear_confirm">Clear</string>
     <string name="history_clear_cancel">Cancel</string>
     <string name="cd_remove_from_history">Remove from watch history</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System default</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_section_downloads">Downloads</string>
+    <string name="settings_wifi_only">Download over Wi-Fi only</string>
+    <string name="settings_wifi_only_detail">On mobile data, downloads wait for Wi-Fi.</string>
+    <string name="settings_quality">Download quality</string>
+    <string name="settings_quality_data_saver">Data saver · up to 360p</string>
+    <string name="settings_quality_standard">Standard · up to 480p</string>
+    <string name="settings_quality_high">High · up to 720p</string>
+    <string name="settings_quality_note">Applies to new downloads.</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_version_value">%1$s (%2$s)</string>
+    <string name="settings_save_failed">Couldn’t save the setting. Please try again.</string>
+    <string name="settings_cancel">Cancel</string>
 </resources>

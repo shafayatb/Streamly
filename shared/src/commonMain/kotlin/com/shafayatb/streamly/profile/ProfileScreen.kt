@@ -79,6 +79,7 @@ fun ProfileRoot(
     bottomInset: Dp,
     onNavigateToDownloads: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -90,6 +91,7 @@ fun ProfileRoot(
         when (event) {
             ProfileEvent.NavigateToDownloads -> onNavigateToDownloads()
             ProfileEvent.NavigateToHistory -> onNavigateToHistory()
+            ProfileEvent.NavigateToSettings -> onNavigateToSettings()
             ProfileEvent.NavigateToOnboarding -> onNavigateToOnboarding()
             is ProfileEvent.ShowMessage -> scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()
