@@ -198,4 +198,27 @@ class PlayerDownloadTest {
         assertEquals(listOf("v1"), downloads.retried)
         assertTrue(downloads.requested.isEmpty())
     }
+
+    @Test
+    fun theRemoveDialogClosesWhenTheDownloadDisappears() {
+        downloads.emit(testDownload("v1", DownloadStatus.COMPLETED))
+        val viewModel = viewModel()
+        viewModel.onIntent(PlayerIntent.RequestRemoveDownload)
+
+        downloads.emit()
+        assertFalse(viewModel.state.value.isRemoveDownloadDialogShown)
+
+        downloads.emit(testDownload("v1", DownloadStatus.COMPLETED))
+        assertFalse(viewModel.state.value.isRemoveDownloadDialogShown)
+    }
+
+    @Test
+    fun theRemoveDialogIsOnlyForACompletedDownload() {
+        downloads.emit(testDownload("v1", DownloadStatus.DOWNLOADING, percent = 10f))
+        val viewModel = viewModel()
+
+        viewModel.onIntent(PlayerIntent.RequestRemoveDownload)
+
+        assertFalse(viewModel.state.value.isRemoveDownloadDialogShown)
+    }
 }

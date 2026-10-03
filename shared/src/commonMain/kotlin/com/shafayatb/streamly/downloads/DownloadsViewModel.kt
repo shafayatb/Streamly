@@ -82,7 +82,14 @@ class DownloadsViewModel(
         loadJob?.cancel()
         downloads.value = null
         loadJob = viewModelScope.launch {
-            downloadRepository.downloads.collect { downloads.value = it }
+            downloadRepository.downloads.collect { result ->
+                downloads.value = result
+                // Forget a removal whose download disappeared, so its dialog cannot return with it.
+                val ids = (result as? Result.Success)?.data
+                    ?.filter { it.status != DownloadStatus.REMOVING }
+                    ?.map { it.videoId }
+                if (ids != null && pendingRemovalId.value !in ids) pendingRemovalId.value = null
+            }
         }
     }
 

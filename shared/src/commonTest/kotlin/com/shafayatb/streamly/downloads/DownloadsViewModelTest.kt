@@ -199,4 +199,16 @@ class DownloadsViewModelTest {
 
         assertNull(viewModel.state.value.pendingRemoval)
     }
+
+    @Test
+    fun aDialogWhoseDownloadDisappearedDoesNotReturnWithIt() {
+        repository.emit(testDownload("v1"))
+        val viewModel = viewModel()
+        viewModel.onIntent(DownloadsIntent.RequestRemove("v1"))
+
+        repository.emit()
+        repository.emit(testDownload("v1"))
+
+        assertNull(viewModel.state.value.pendingRemoval)
+    }
 }

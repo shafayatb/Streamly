@@ -106,6 +106,10 @@ class PlayerViewModel(
                 val download = (result as? Result.Success)?.data?.firstOrNull { it.videoId == videoId }
                 downloadEntry.value = download
                 if (download != null) isStartingDownload.value = false
+                // Only a finished download can be removed from here; close the dialog otherwise.
+                if (download?.status != DownloadStatus.COMPLETED) {
+                    screen.update { it.copy(isRemoveDownloadDialogShown = false) }
+                }
             }
         }
     }
@@ -136,7 +140,9 @@ class PlayerViewModel(
             PlayerIntent.ScreenHidden -> onScreenHidden()
             PlayerIntent.Download -> startDownload()
             PlayerIntent.CancelDownload -> cancelDownload()
-            PlayerIntent.RequestRemoveDownload -> screen.update { it.copy(isRemoveDownloadDialogShown = true) }
+            PlayerIntent.RequestRemoveDownload -> if (downloadEntry.value?.status == DownloadStatus.COMPLETED) {
+                screen.update { it.copy(isRemoveDownloadDialogShown = true) }
+            }
             PlayerIntent.ConfirmRemoveDownload -> {
                 screen.update { it.copy(isRemoveDownloadDialogShown = false) }
                 downloadRepository.remove(videoId)
