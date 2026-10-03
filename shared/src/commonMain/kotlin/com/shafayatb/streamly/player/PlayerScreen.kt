@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -134,6 +135,13 @@ fun PlayerRoot(
         onShown = { viewModel.onIntent(PlayerIntent.ScreenShown) },
         onHidden = { viewModel.onIntent(PlayerIntent.ScreenHidden) },
     )
+
+    val windowShape = currentWindowShape()
+    LaunchedEffect(windowShape) { viewModel.onIntent(PlayerIntent.WindowChanged(windowShape)) }
+    OrientationLockEffect(state.fullscreen.orientationLock)
+    DeviceOrientationEffect(state.fullscreen.orientationLock) { orientation, autoRotate ->
+        viewModel.onIntent(PlayerIntent.DeviceOrientationChanged(orientation, autoRotate))
+    }
 
     val requestNotificationPermission = rememberNotificationPermissionRequest()
     PlayerScreen(
