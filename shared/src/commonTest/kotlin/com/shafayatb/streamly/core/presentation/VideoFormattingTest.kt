@@ -128,4 +128,14 @@ class VideoFormattingTest {
         assertEquals("1.2 GB", formatBytes(1_234_000_000))
         assertEquals("31.0 GB", formatBytes(31_000_000_000))
     }
+
+    @Test
+    fun byteCountsThatRoundUpMoveToTheNextUnit() {
+        assertEquals("999 KB", formatBytes(999_499))
+        assertEquals("1.0 MB", formatBytes(999_500))
+        assertEquals("9.9 MB", formatBytes(9_949_999))
+        assertEquals("10 MB", formatBytes(9_950_000))
+        assertEquals("999 MB", formatBytes(999_499_999))
+        assertEquals("1.0 GB", formatBytes(999_500_000))
+    }
 }

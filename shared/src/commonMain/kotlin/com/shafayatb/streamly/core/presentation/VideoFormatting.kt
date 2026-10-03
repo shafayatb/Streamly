@@ -79,9 +79,10 @@ private fun Int.twoDigits(): String = toString().padStart(2, '0')
 /** Sizes in decimal units, as Android's storage settings show them: "4.2 MB", "66 MB", "1.2 GB". */
 fun formatBytes(bytes: Long): String = when {
     bytes < 1_000 -> "$bytes B"
-    bytes < 1_000_000 -> "${roundedDiv(bytes, 1_000)} KB"
-    bytes < 10_000_000 -> "${oneDecimal(bytes, 1_000_000)} MB"
-    bytes < 1_000_000_000 -> "${roundedDiv(bytes, 1_000_000)} MB"
+    // Each bound is where the rounded figure would reach the next unit, so "1000 KB" never shows.
+    bytes < 999_500 -> "${roundedDiv(bytes, 1_000)} KB"
+    bytes < 9_950_000 -> "${oneDecimal(bytes, 1_000_000)} MB"
+    bytes < 999_500_000 -> "${roundedDiv(bytes, 1_000_000)} MB"
     else -> "${oneDecimal(bytes, 1_000_000_000)} GB"
 }
 
