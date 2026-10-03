@@ -13,7 +13,7 @@ buildable after each task. These targets do not permit omitting a brief requirem
 3. **October 3 — offline and account:** real Media3 download/progress; offline playback/removal;
    profile and sign-out. Test offline playback with connectivity disabled.
 4. **October 4 — hardening and submission:** adaptive layout regression, state/error polish, regression tests,
-   README, debug APK, and a 2–4 minute demo of all seven reference views.
+   README, the benchmark APK, and a 2–4 minute demo of all seven reference views.
 
 For each task: implement its single outcome, run the build and relevant automated tests, exercise
 the changed journey on a device, then stage a focused commit or a few independently meaningful
@@ -70,4 +70,4 @@ management, while the acceptance gate is verification of the focused task.
 - [ ] Public or invite-only GitHub repo with a clean history and `AGENTS.md` symlinked per tool
 - [ ] README: setup, architecture, AI workflow, shortcuts
 - [ ] 2–4 minute demo covering all seven screens, including a real download playing offline
-- [ ] Debug APK, or a note to build from source
+- [ ] Benchmark APK (release build, R8-minified, debug-signed) and build-from-source instructions

@@ -4,7 +4,7 @@ Streamly is a minimal YouTube-style Android app with long-form HLS videos, verti
 offline downloads, and a profile with sign-out. It is built with Kotlin Multiplatform and Compose
 Multiplatform, with an Android target only.
 
-> **Status:** all seven reference views are done: onboarding, the home feed, Shorts, the player,
+> **Status: 1.0, the submitted build.** All seven reference views are done: onboarding, the home feed, Shorts, the player,
 > Downloads, Profile, and the sign-out confirmation. Returning users go straight to Home, which loads the video catalog with category
 > chips, an adaptive grid, and loading, empty, and error states. Tapping a video plays it over HLS
 > with Media3: play/pause, scrubbing, mute, a buffering indicator, a LIVE badge for live streams,
@@ -21,7 +21,61 @@ Multiplatform, with an Android target only.
 > own launcher icon, a branded splash that stays until the stored session and settings are read,
 > and the mockups' typeface, Baloo Da 2.
 
-## Setup
+## Demo
+
+[![The Streamly player playing a video, with its controls showing](docs/media/demo-poster.jpg)](docs/media/streamly-demo.mp4)
+
+**[Watch the demo (3 min 35 s, silent MP4)](docs/media/streamly-demo.mp4).** It was recorded on a
+Samsung Galaxy A04 (Android 14) from the benchmark APK below.
+
+| Time | What it shows |
+| --- | --- |
+| 0:00 | Splash, onboarding (Google, email, guest), email sign-in |
+| 0:12 | Home feed: loading placeholders, scrolling, category chips |
+| 0:27 | Player: HLS playback, scrubbing, mute, pause and play |
+| 1:00 | Fullscreen in landscape, then Up next into a live stream (LIVE badge, no Download) |
+| 1:22 | A real download with progress in the Player and the Downloads tab (the wait is trimmed) |
+| 1:44 | Shorts: a vertical pager in which only the visible short plays |
+| 2:07 | Offline: Wi-Fi off, the download plays, an unsaved video fails with Try again; Wi-Fi back, retry |
+| 2:51 | Removing the download, with a confirmation |
+| 2:56 | Watch history and resume, the dark theme, sign-out with a confirmation |
+
+## Screenshots
+
+Phone (Galaxy A04, benchmark build):
+
+| Onboarding | Home | Shorts | Player | Downloads |
+| --- | --- | --- | --- | --- |
+| <img src="docs/media/screenshots/01-onboarding.png" width="160" alt="Onboarding"> | <img src="docs/media/screenshots/02-home.png" width="160" alt="Home feed"> | <img src="docs/media/screenshots/03-shorts.png" width="160" alt="Shorts"> | <img src="docs/media/screenshots/04-player.png" width="160" alt="Player"> | <img src="docs/media/screenshots/05-downloads.png" width="160" alt="Downloads"> |
+
+| Profile | Sign out | Settings | Home, dark | Watch history |
+| --- | --- | --- | --- | --- |
+| <img src="docs/media/screenshots/06-profile.png" width="160" alt="Profile"> | <img src="docs/media/screenshots/07-sign-out.png" width="160" alt="Sign-out confirmation"> | <img src="docs/media/screenshots/08-settings.png" width="160" alt="Settings"> | <img src="docs/media/screenshots/09-home-dark.png" width="160" alt="Home in dark theme"> | <img src="docs/media/screenshots/10-history.png" width="160" alt="Watch history"> |
+
+Tablet (a 1200x900 dp window) and phone landscape (emulator, benchmark build):
+
+| Tablet home | Tablet player |
+| --- | --- |
+| <img src="docs/media/screenshots/11-tablet-home.png" width="400" alt="Home on a tablet: navigation rail and three columns"> | <img src="docs/media/screenshots/12-tablet-player.png" width="400" alt="Player on a tablet: video and details beside Up next"> |
+
+| Landscape home | Landscape player |
+| --- | --- |
+| <img src="docs/media/screenshots/14-landscape-home.png" width="400" alt="Home in phone landscape with a navigation rail"> | <img src="docs/media/screenshots/13-landscape-player.png" width="400" alt="Player in phone landscape"> |
+
+## Install the APK
+
+[`apk/streamly-1.0-benchmark.apk`](apk/streamly-1.0-benchmark.apk) (3.4 MB) is the build to try,
+on Android 7.0 (API 24) or newer. It is the release build minified with R8 and signed with a debug
+key, so it installs without a store and runs without debug overhead.
+
+- **On a phone:** download the file, open it, and allow installing apps from that source when
+  Android asks.
+- **With adb:** `adb install apk/streamly-1.0-benchmark.apk`
+
+Because it is debug-signed, it cannot update a Streamly build signed on another machine. Uninstall
+that build first: `adb uninstall com.shafayatb.streamly`.
+
+## Build from source
 
 **Requirements**
 
@@ -33,6 +87,7 @@ Multiplatform, with an Android target only.
 **Commands**
 
 ```bash
+./gradlew :androidApp:assembleBenchmark # build the minified, debug-signed APK that ships
 ./gradlew :androidApp:assembleDebug     # build the debug APK
 ./gradlew :androidApp:installDebug      # install on a connected device or emulator
 ./gradlew check                         # lint and host tests for every module
@@ -40,7 +95,16 @@ Multiplatform, with an Android target only.
 ./gradlew :shared:connectedAndroidDeviceTest   # Compose device tests (needs a device or emulator)
 ```
 
-The debug APK is written to `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+The APKs are written to `androidApp/build/outputs/apk/benchmark/androidApp-benchmark.apk` and
+`androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+
+**Build types.** `debug` is debuggable and writes the player event logs used in testing
+(`StreamlyPlayer` and `StreamlyShorts`, gated on `FLAG_DEBUGGABLE`). The two `StreamlyDownloads`
+lines, which rendition is queued and when a saved copy plays, are written by every build.
+`benchmark` copies `release`, then enables R8 code and resource shrinking, turns debugging off,
+and signs with the debug key. It needed no keep rules beyond the libraries' own consumer rules,
+and its end-to-end pass covered every screen and every persisted store after a restart. `release`
+is unchanged and unsigned; publishing would need a real signing configuration.
 
 ## Architecture
 
@@ -217,7 +281,7 @@ the size cap of the [download quality setting](#settings), plus its audio: 640x3
 70 MB instead of about 490 MB at 1080p, and a stream without such a variant falls back to its
 lowest one. The quality is read when each download is prepared, so a change applies to new
 downloads only; a download in progress, and Retry of a failed one, keep the stream keys they
-started with. Debug builds log `StreamlyDownloads: Queuing <id> at <quality>: [<width>x<height>]`. Live streams cannot be downloaded,
+started with. Every build logs `StreamlyDownloads: Queuing <id> at <quality>: [<width>x<height>]`. Live streams cannot be downloaded,
 so the player hides the action for them. The video's title, channel, thumbnail URL, and length are
 stored as JSON in `DownloadRequest.data`, so the Downloads tab lists them offline without the catalog.
 
@@ -226,7 +290,7 @@ off, `HlsMediaSource` would pick a variant from its bandwidth estimate, usually 
 downloaded. So when `ExoVideoPlayer` loads a video that has a *completed* download, it plays
 `DownloadRequest.toMediaItem()`, whose stream keys restrict the playlist to the saved rendition.
 Everything else, including partly downloaded videos, streams with full ABR as before. The check
-lives inside `:core:media`, so stream keys never reach the domain or the UI. Debug builds log
+lives inside `:core:media`, so stream keys never reach the domain or the UI. Every build logs
 `StreamlyDownloads: Playing download <id> (<n> stream keys)` when this happens.
 
 **Progress.** `DownloadManager` reports state changes through its listener but not progress, so
@@ -269,7 +333,8 @@ restarts a failed download. The Downloads tab (mockup 05) shows the storage used
 unfinished and failed downloads first (with a progress bar, "Waiting for network", "Waiting for
 Wi-Fi", or Retry), then
 finished ones marked "Ready to play". Rows can be cancelled or removed (with a confirmation
-dialog), and tapping a finished one opens the player. Removing a download takes it out of the
+dialog; the dialog closes, and stays closed, if its download disappears), and tapping a finished
+one opens the player. Removing a download takes it out of the
 account's list at once; its files are deleted when no other account still has it saved (see
 below), so the storage figure drops and the video no longer plays offline for that account.
 
@@ -291,6 +356,11 @@ accounts' downloads share the same cached segments. The player plays a saved cop
 account that owns it and streams for anyone else. Until the owners have been read (a player
 restored at launch), it trusts the saved copy, so an owner's offline playback never fails on a
 race. Downloads that existed before this change are adopted by the first account that sees them.
+Once per launch, owner records whose download no longer exists (for example, a video downloaded
+again before Media3 finished removing it) are dropped, unless a download has already started in
+that run, because a new download's owner is recorded before the device lists it. A removal reports
+whether its owner change was saved: if it was not, the files stay and the screen shows "Couldn’t
+remove the download. Please try again."
 
 Ownership is not stored in `DownloadRequest.data`: Media3's `DownloadManager.mergeRequest` moves an
 existing download, even a completed one, back to the queue when its request is added again, so
@@ -459,8 +529,8 @@ The project is built with Claude Code as the agent throughout.
   signs in at once with a fixed demo profile (Anika Rahman, anika@streamly.app). Email sign-in
   asks only for a valid address, with no password, and builds the display name from it
   (`jane.doe@…` becomes "Jane Doe"). The session is stored locally in DataStore.
-- **Mocked catalog API.** The repo is private, so there is no hosted JSON to fetch. The video
-  catalog is bundled with the app (`BundledCatalog`) and served by `CatalogMockApi`, a Ktor
+- **Mocked catalog API.** The brief allows faked network data, and a bundled catalog means the
+  demo has no backend to keep alive. The video catalog is bundled with the app (`BundledCatalog`) and served by `CatalogMockApi`, a Ktor
   `MockEngine` that answers `GET videos`, `videos/{id}`, and `videos/{id}/up-next` after about
   600 ms of simulated latency. Requests still go through the real client pipeline (content
   negotiation, DTOs, mappers, and `safeCall`, which maps failures to `DataError.Network`), so a
@@ -539,3 +609,38 @@ The project is built with Claude Code as the agent throughout.
 - The notification permission is requested from the Download action. If it is denied, downloads
   still run without a notification; a later Download tap asks again until Android stops showing
   the prompt (after a second denial), and there is no in-app explanation of why it is useful.
+- Some public test streams start slowly on a real phone: Mux's Big Buck Bunny took about 8 s to
+  load its first segment on the Galaxy A04, and once more than 45 s. The buffering indicator shows
+  meanwhile; there is no "taking longer than usual" message.
+- A quick double tap on a row (History, Profile, Settings) can open its destination twice, so
+  Back has to be pressed twice.
+- TalkBack reads the Player's waiting download as "Waiting, Waiting for Wi-Fi", and the watch
+  progress bar on History rows has no accessibility description.
+- At 200% font scale, accented capitals can draw slightly outside the tightest text styles.
+- Process death in the millisecond between saving a sign-out and returning to onboarding would
+  restore the tab shell with no session.
+
+### Known code-level gaps
+
+These do not change what a user sees today, but a reviewer should know about them:
+
+- `MediaDownloads`: the launch-time fallback read of the download index in `completedMediaItem`
+  is not guarded against an `IOException`; changes reported while the index is first read can be
+  overwritten by that read; the download executor is not shut down in `release()`; and no
+  automated test pins the order in which it applies the Wi-Fi requirement at launch (that needs a
+  device-test source set in `:core:media`).
+- The Player cannot tell "downloads failed to load" from "no download", and its Queued state can
+  stick if the downloader never reports a started download.
+- `DeviceDownloads` extends `DownloadRepository`, so the device-wide store type-checks where the
+  account-scoped one is expected; only the Koin binding keeps them apart. The account
+  repository's coroutine scope has no `onClose`.
+- `AccountWatchHistory` writes several entries in one loop with no per-item isolation, hiding the
+  Player writes its progress twice, and `DataModule` uses `Clock.System` directly.
+- The light-mode Sign out red in `ProfileScreen` is a literal colour, not a theme token.
+- `currentWindowShape()` is computed twice (Root and Screen), and the `DeviceOrientationEffect`
+  KDoc overstates how it detects an auto-rotate change.
+- Test gaps: `DataStoreDownloadOwnershipRepositoryTest` has no read-failure or disk-full case;
+  `FakeDeviceDownloads.download` suspends in the caller, unlike `MediaDownloads`; the fullscreen
+  Back device test does not include `NavDisplay`; `WatchHistoryScreenTest` does not tap Clear
+  all; the typography test pins font weights, not that the files are Baloo; and `App` still has
+  an unused `koinViewModel()` default.

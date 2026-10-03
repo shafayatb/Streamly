@@ -14,10 +14,10 @@ Network data may be faked, but the architecture, the player lifecycle, and the c
 Grading weights: Media3 usage 30%, Architecture 25%, Compose & state 20%, Code quality 10%,
 Polish 10%, AI-first workflow 5%. When choosing where to spend effort, follow these weights.
 
-Working delivery target: **October 4, 2026**, as supplied by the project owner. The brief is
-internally inconsistent: its cover says **3 days from receipt**, while its timeline page says
-**6 days from receipt**. Confirm the actual submission time with the hiring team; plan against
-October 4 until told otherwise.
+Submission deadline: **Sunday, October 4, 2026, 11:59 PM**, confirmed by the hiring team's email.
+(The brief itself was inconsistent: 3 days from receipt on its cover, 6 on its timeline page.)
+The reply needs the GitHub repository link, the README, a demo video link, and an APK or build
+instructions.
 
 ## Hard constraints (from the brief, non-negotiable)
 

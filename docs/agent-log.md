@@ -778,3 +778,83 @@ itself.
     - A KDoc says auto-rotate changes are reported, but they are only seen on the next sensor
       event.
 - **Commits:** `e2d8ab7`, `29f5fea`, `2239174`, `cdee055`, `2f2f99a`, and this docs commit.
+
+### 12. The 1.0 release gate — October 3
+
+- **Branch:** `develop` (no release branch; the reviewer chose that on October 3).
+- **Plan:** [`docs/plans/2026-10-04-release.md`](plans/2026-10-04-release.md), the agreed design
+  and the implementation plan in one file.
+- **Prompt:** turn `develop` into the verified submission. The hiring team's email asked for the
+  repository link, the README, a demo video link, and an APK or build instructions, with a
+  deadline of Sunday, October 4, 11:59 PM. The reviewer added: `main` holds the final code; the
+  README shows screenshots and the demo; a separate 2–4 minute demo file; the benchmark APK with
+  build instructions; both files committed to the public repo and shared as GitHub links, with
+  their sizes checked.
+- **How the agent worked:** the same workflow as tasks 6–11.
+  - **Brainstorming.** Most of the scope was agreed on October 2–3 (fix bundle 1 only, the
+    benchmark build). The agent asked one question at a time about what was still open. The
+    reviewer chose a **silent demo with chapter timestamps in the README**, recorded on the
+    **Galaxy A04**, shown in the README as a **poster image linking to the MP4**. The design
+    (five sections, including the `remove()` interface change and splitting the full pass across
+    the two devices) was approved in one reply.
+  - **Plan and build.** Nine tasks with test-first steps, executed inline (superpowers
+    *executing-plans* + *test-driven-development*) with a ledger. Every fix began with a failing
+    test watched failing for the expected reason; the pruning guard was also checked by
+    disabling it and watching its test fail.
+- **Decisions:**
+  - **`remove()` reports failure.** `DownloadRepository.remove` is now `suspend` and returns
+    `EmptyResult<DataError.Local>`, like `download()`. The work still runs in the account
+    repository's app-wide scope, so leaving the screen never stops a removal half-way. The
+    alternative, a separate error flow, was rejected as less MVI-shaped.
+  - **Pruning runs once per launch and steps aside for a new download.** A new download's owner
+    is recorded before Media3 lists it (`sendAddDownload` is asynchronous), so any start in the
+    run skips the prune; the next launch cleans up.
+  - **Keep rules only when R8 asks.** The benchmark build compiled with no missing classes and
+    ran every screen with an empty crash buffer, so no rules were added beyond line numbers.
+  - **Split verification.** The player and Shorts event logs are off in the benchmark build, so
+    the emulator ran the full pass on `debug` (log evidence) and the A04 ran it on `benchmark`.
+- **Problems found:**
+  - **Device scripting raced the Player's 3-second control auto-hide.** A first demo take tapped
+    Full screen just after the controls hid, so the tap only showed them and the next Back left
+    the Player. The retake shows the controls and taps in one `adb shell` call, timed after the
+    auto-hide.
+  - **A one-off stall.** Big Buck Bunny buffered for more than 45 s once on the A04 benchmark
+    build. Systematic debugging: the playlist answered in 0.24 s; the emulator's debug build
+    started in 1.5 s; the A04's debug build logged a 7.5 s first segment with no load error; the
+    benchmark build then played. Ruled a slow third-party stream, documented in known gaps.
+  - **`monkey` does not launch the app on the emulator;** screenshots taken after it showed the
+    launcher and were retaken with `am start`.
+- **Verification:**
+  - **Tests.** `./gradlew check` green: 342 host tests (domain 56, data 47, shared 208, media 31;
+    12 new), lint 0 errors with the 4 version notices, and the benchmark lint-vital check clean.
+    `:shared:connectedAndroidDeviceTest`: 228 tests, 0 failures, on both devices.
+  - **Galaxy A04 (Android 14), benchmark build, clean install:** splash and onboarding; email
+    sign-in; chips; Player (scrub to 5:07, mute, pause holding at 6:47, fullscreen to
+    `ROTATION_90` and back, resume from history at 6:58, live via Up next with no Download);
+    a download with progress in the Player and the tab, the "Download completed" notification;
+    Shorts, with no audio player started in the background; offline playback of the download,
+    the offline error and retry; removal with the dialog; history remove-one and Clear all;
+    Wi-Fi only on a metered Wi-Fi ("Waiting" / "Waiting for Wi-Fi", then completes when
+    unmetered); 720p giving 12 MB against 8.7 MB at 480p; sign-out, guest isolation, "Leave guest
+    mode?", and the download back after signing in again; a force-stop keeping the session,
+    theme, settings, and history. The crash buffer stayed empty.
+  - **Emulator (API 37), debug build, clean install:** launcher icon; splash, loading
+    placeholders, feed; Shorts creating exactly two pool players over six swipes;
+    `Queuing … at STANDARD: [640x480]`, then `at DATA_SAVER: [480x360]` after waiting on cellular
+    with Wi-Fi only; removal from the Player; Dark, Light, and System themes; landscape and a
+    1200x900 dp tablet window (rail, three columns, two-pane Player); offline error and retry;
+    sign-out and back. No `FATAL` in the log.
+  - **Deliverables:** demo 3 min 35 s, 10.3 MB (`docs/media/streamly-demo.mp4`); APK 3.4 MB
+    (`apk/streamly-1.0-benchmark.apk`); 14 screenshots; `docs/media` 15 MB in all.
+- **Fresh review of the whole change** (one reviewer subagent on Fable). No critical or important
+  issues; ready to merge with one fix.
+  - **Fixed: the README misstated log gating.** It said the `StreamlyDownloads` lines are debug
+    only; they are written by every build (only the player and Shorts logs are gated). The README
+    now says so in all three places.
+  - **Deferred minors:** the APK's R8 mapping file is not committed, so a crash trace from it needs
+    a local benchmark build to retrace; no test pins that a removal completes after its caller is
+    cancelled (it runs in the repository's scope by construction); a prune interrupted by a new
+    download leaves the remaining stale records until the next launch.
+- **Commits:** `docs: plan the 1.0 release`, four `fix(downloads)` commits (size units, the
+  vanished dialog, removal feedback, pruning), `build(app): add the benchmark build type`,
+  `docs: add the 1.0 screenshots, demo, and apk`, and this docs commit.
