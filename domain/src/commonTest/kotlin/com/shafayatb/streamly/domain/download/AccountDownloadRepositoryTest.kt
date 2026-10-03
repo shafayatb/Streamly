@@ -106,6 +106,17 @@ class AccountDownloadRepositoryTest {
     }
 
     @Test
+    fun downloadingAVideoWaitingForWifiSharesItWithoutQueuingAgain() = runTest(UnconfinedTestDispatcher()) {
+        device.set(download("v", DownloadStatus.WAITING_FOR_WIFI))
+        ownership.stored.value = mapOf("v" to setOf(janeKey))
+
+        assertEquals(Result.Success(Unit), repository().download(video("v")))
+
+        assertEquals(emptyList(), device.requested)
+        assertEquals(setOf(janeKey, anikaKey), ownership.stored.value["v"])
+    }
+
+    @Test
     fun downloadingAFailedDownloadRetriesIt() = runTest(UnconfinedTestDispatcher()) {
         device.set(download("v", DownloadStatus.FAILED))
         ownership.stored.value = mapOf("v" to setOf(janeKey))

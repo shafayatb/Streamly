@@ -3,6 +3,7 @@ package com.shafayatb.streamly.core.media.download
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.scheduler.Requirements
 import com.shafayatb.streamly.domain.download.DownloadStatus
 import com.shafayatb.streamly.domain.download.VideoDownload
 import kotlin.time.Duration.Companion.milliseconds
@@ -31,11 +32,19 @@ internal fun Download.toSnapshot(): DownloadSnapshot = DownloadSnapshot(
     metadata = DownloadMetadata.decode(request.data, videoId = request.id),
 )
 
-/** The app's only download requirement is a network, so any unmet requirement means offline. */
+/**
+ * A queued download that cannot run is waiting for a network, or, with Wi-Fi only on mobile data,
+ * for an unmetered one. Offline reports both bits, and the missing network is the one to name.
+ */
 @OptIn(UnstableApi::class)
 internal fun downloadStatusOf(state: Int, notMetRequirements: Int): DownloadStatus = when (state) {
-    Download.STATE_QUEUED ->
-        if (notMetRequirements != 0) DownloadStatus.WAITING_FOR_NETWORK else DownloadStatus.QUEUED
+    Download.STATE_QUEUED -> when {
+        notMetRequirements == 0 -> DownloadStatus.QUEUED
+        notMetRequirements and Requirements.NETWORK != 0 -> DownloadStatus.WAITING_FOR_NETWORK
+        notMetRequirements and Requirements.NETWORK_UNMETERED != 0 -> DownloadStatus.WAITING_FOR_WIFI
+        // The app sets no other requirement.
+        else -> DownloadStatus.WAITING_FOR_NETWORK
+    }
     Download.STATE_DOWNLOADING, Download.STATE_RESTARTING -> DownloadStatus.DOWNLOADING
     Download.STATE_COMPLETED -> DownloadStatus.COMPLETED
     Download.STATE_FAILED -> DownloadStatus.FAILED

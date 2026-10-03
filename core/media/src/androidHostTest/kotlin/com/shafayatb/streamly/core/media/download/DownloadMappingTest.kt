@@ -47,6 +47,23 @@ class DownloadMappingTest {
     }
 
     @Test
+    fun aMeteredNetworkWithWifiOnlyIsWaitingForWifi() {
+        // Wi-Fi only on mobile data: only the unmetered requirement is unmet.
+        assertEquals(
+            DownloadStatus.WAITING_FOR_WIFI,
+            downloadStatusOf(Download.STATE_QUEUED, notMetRequirements = Requirements.NETWORK_UNMETERED),
+        )
+        // Wi-Fi only and offline: Media3 reports both bits, and the missing network comes first.
+        assertEquals(
+            DownloadStatus.WAITING_FOR_NETWORK,
+            downloadStatusOf(
+                Download.STATE_QUEUED,
+                notMetRequirements = Requirements.NETWORK or Requirements.NETWORK_UNMETERED,
+            ),
+        )
+    }
+
+    @Test
     fun mapsASnapshotWithItsMetadata() {
         assertEquals(
             VideoDownload(

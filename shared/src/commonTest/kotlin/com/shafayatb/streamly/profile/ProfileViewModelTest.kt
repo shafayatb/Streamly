@@ -22,7 +22,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import streamly.shared.generated.resources.Res
-import streamly.shared.generated.resources.profile_settings_soon
 import streamly.shared.generated.resources.profile_sign_out_failed
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -167,12 +166,12 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun settingsAreComingSoon() = runTest {
+    fun settingsOpensTheSettings() = runTest {
         val viewModel = ProfileViewModel(FakeSessionRepository(anika))
 
         viewModel.events.test {
             viewModel.onIntent(ProfileIntent.OpenSettings)
-            assertEquals(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_settings_soon)), awaitItem())
+            assertEquals(ProfileEvent.NavigateToSettings, awaitItem())
         }
     }
 }

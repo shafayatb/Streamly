@@ -21,7 +21,12 @@ class VideoDownloadTest {
     fun onlyUnfinishedDownloadsAreInProgress() {
         val inProgress = DownloadStatus.entries.filter { download(it).isInProgress }
         assertEquals(
-            listOf(DownloadStatus.QUEUED, DownloadStatus.WAITING_FOR_NETWORK, DownloadStatus.DOWNLOADING),
+            listOf(
+                DownloadStatus.QUEUED,
+                DownloadStatus.WAITING_FOR_NETWORK,
+                DownloadStatus.WAITING_FOR_WIFI,
+                DownloadStatus.DOWNLOADING,
+            ),
             inProgress,
         )
     }

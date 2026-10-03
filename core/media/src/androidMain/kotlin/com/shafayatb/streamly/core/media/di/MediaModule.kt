@@ -21,8 +21,9 @@ public val mediaModule: Module = module {
     single { MediaCache(androidContext()) } onClose { it?.release() }
 
     // Application-scoped: the only DownloadManager, writing into the one media cache. It sees
-    // every account's downloads; the app reads them through the account-scoped repository.
-    single { MediaDownloads(androidContext(), get()) } onClose { it?.release() } bind DeviceDownloads::class
+    // every account's downloads, and the device-wide download settings; the app reads the
+    // downloads through the account-scoped repository.
+    single { MediaDownloads(androidContext(), get(), get()) } onClose { it?.release() } bind DeviceDownloads::class
 
     // Application-scoped: one player for every normal-video screen, released only with Koin.
     single {

@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
     private val appViewModel: AppViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Kept until the stored session is read, so the first screen is the right one.
+        // Kept until the stored session and settings are read, so the first screen is the right one, in the right theme.
         installSplashScreen().setKeepOnScreenCondition { appViewModel.state.value == AppState.Loading }
         // Onboarding and the home header are dark brand surfaces, so status bar icons stay light.
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))

@@ -16,8 +16,10 @@ Multiplatform, with an Android target only.
 > Downloads belong to the account that saved them: signing out hides them, and signing in again
 > as the same account brings them back. Profile shows the account and signs out after a
 > confirmation, returning to onboarding. Watch history lists what each account has watched, with
-> its progress, and the player resumes a video where that account left off. The app has its own launcher icon, a branded splash
-> that stays until the stored session is read, and the mockups' typeface, Baloo Da 2.
+> its progress, and the player resumes a video where that account left off. Settings chooses the
+> theme (system, light, or dark), Wi-Fi-only downloads, and the download quality. The app has its
+> own launcher icon, a branded splash that stays until the stored session and settings are read,
+> and the mockups' typeface, Baloo Da 2.
 
 ## Setup
 
@@ -64,7 +66,7 @@ graph TD
 | `:androidApp` | Thin Android shell: `MainActivity`, `StreamlyApplication`, and the composition root that starts Koin. |
 | `:shared` | Compose UI: navigation (Nav3), screen ViewModels, feature screens, and resources. |
 | `:domain` | Pure Kotlin models, repository and player contracts, and use cases. Its only dependency is `kotlinx-coroutines-core`. |
-| `:data` | Implements the network and session contracts: Ktor clients, DTOs and mappers, and DataStore session storage. |
+| `:data` | Implements the network and storage contracts: Ktor clients, DTOs and mappers, and DataStore storage for the session, download owners, watch history, and settings. |
 | `:core:designsystem` | Theme and reusable Compose components. |
 | `:core:media` | All Media3 code: the shared normal-video player, the Shorts player pool, `DownloadManager`, and the single download cache that offline playback also reads from. It exposes Compose video surfaces to `:shared/androidMain`. |
 
@@ -182,8 +184,8 @@ bars, with the like, comment, and share actions beside it rather than over it.
 
 Downloads use Media3's offline module. The domain declares `DownloadRepository` (`downloads`,
 `storage`, `download(video)`, `retry`, `remove`) with a framework-free `VideoDownload` model
-(`QUEUED`, `WAITING_FOR_NETWORK`, `DOWNLOADING`, `COMPLETED`, `FAILED`, `REMOVING`, percent, and
-bytes). `:core:media` implements it as `MediaDownloads`, an application singleton.
+(`QUEUED`, `WAITING_FOR_NETWORK`, `WAITING_FOR_WIFI`, `DOWNLOADING`, `COMPLETED`, `FAILED`,
+`REMOVING`, percent, and bytes). `:core:media` implements it as `MediaDownloads`, an application singleton.
 
 **One cache, one database.** `MediaDownloads` owns the app's only `DownloadManager`. It writes into
 `MediaCache`'s `SimpleCache`, shares its `StandaloneDatabaseProvider` (the download index and the
@@ -191,8 +193,12 @@ cache index live in the same database), and fetches through the same `DefaultHtt
 factory as playback. Nothing else creates a cache or database.
 
 **Rendition.** `DownloadHelper` reads the master playlist and picks the best variant at or below
-854x480, plus its audio. A 10.5-minute video is about 70 MB instead of about 490 MB at 1080p, and
-a stream without such a variant falls back to its lowest one. Live streams cannot be downloaded,
+the size cap of the [download quality setting](#settings), plus its audio: 640x360 (Data saver),
+854x480 (Standard, the default), or 1280x720 (High). At Standard a 10.5-minute video is about
+70 MB instead of about 490 MB at 1080p, and a stream without such a variant falls back to its
+lowest one. The quality is read when each download is prepared, so a change applies to new
+downloads only; a download in progress, and Retry of a failed one, keep the stream keys they
+started with. Debug builds log `StreamlyDownloads: Queuing <id> at <quality>: [<width>x<height>]`. Live streams cannot be downloaded,
 so the player hides the action for them. The video's title, channel, thumbnail URL, and length are
 stored as JSON in `DownloadRequest.data`, so the Downloads tab lists them offline without the catalog.
 
@@ -218,17 +224,31 @@ Download asks for notification permission; the download runs whatever the answer
 the notification needs it. `MainActivity` starts the service at launch, so downloads left
 unfinished by a killed process resume.
 
-**Network policy.** Downloads may use any network (`Requirements.NETWORK`, Media3's default). There
-is no settings screen yet to offer a Wi-Fi-only switch, and blocking on mobile data with no way
-to override it would be worse. While offline, a download shows "Waiting for network" and resumes
-on its own. `getScheduler()` returns `null`: Media3 never uses a scheduler on Android 12+, where the
-service simply stays in the foreground until the network returns, and doing the same on older
-versions avoids a job service and the boot permission for a path the test devices cannot exercise.
+**Network policy.** By default downloads may use any network (`Requirements.NETWORK`). Settings'
+"Download over Wi-Fi only" switches the `DownloadManager` to `Requirements.NETWORK_UNMETERED`; the
+change applies at once, so a download running on mobile data pauses (keeping what it saved) and
+resumes on Wi-Fi. The status names the wait: "Waiting for network" when offline, "Waiting for
+Wi-Fi" when only a metered network is available (Media3 reports the unmet unmetered requirement).
+At launch the stored choice is not known yet, and Media3's `DownloadService` resumes the manager
+as soon as it starts, so `MediaDownloads` begins with the strict Wi-Fi requirement and applies the
+stored one when the settings DataStore answers: a Wi-Fi-only user never spends mobile data, and
+the downloads flow waits for that answer so nobody sees a false "Waiting for Wi-Fi".
+`getScheduler()` returns `null`: Media3 never uses a scheduler on Android 12+, and doing the same
+on older versions avoids a job service and the boot permission for a path the test devices
+cannot exercise. While the app is open, a waiting download starts by itself when the network (or
+Wi-Fi) returns. Android 12+ does not let the app start its download service from the background,
+and there is no scheduler, so a download still waiting when the app is closed starts the next time
+the app is opened with a suitable network. The notification ("Downloads waiting for WiFi" while a
+paused download waits) shows only while a download has started in this process. If the settings
+cannot be read, downloads fail safe to Wi-Fi only and the read is retried.
 
 **UI.** The Player's Download action shows the real percent in a progress ring; tapping it while
-queued or downloading cancels the download. "Downloaded" asks before removing, and "Retry"
+queued or downloading cancels the download. While a download waits it reads "Waiting" (the only
+word that fits beside Like and Share on a 360 dp phone); TalkBack hears "Waiting for Wi-Fi" when
+that is the reason. "Downloaded" asks before removing, and "Retry"
 restarts a failed download. The Downloads tab (mockup 05) shows the storage used and free space,
-unfinished and failed downloads first (with a progress bar, "Waiting for network", or Retry), then
+unfinished and failed downloads first (with a progress bar, "Waiting for network", "Waiting for
+Wi-Fi", or Retry), then
 finished ones marked "Ready to play". Rows can be cancelled or removed (with a confirmation
 dialog), and tapping a finished one opens the player. Removing a download takes it out of the
 account's list at once; its files are deleted when no other account still has it saved (see
@@ -275,7 +295,8 @@ chrome is dark while Shorts is selected, because Shorts always uses the dark col
 
 Profile (mockup 06) is the fourth tab. `ProfileViewModel` reads `SessionRepository.session` and
 shows the initials, name, and email under a brand header, then rows for Downloads (which selects
-the Downloads tab), Watch history (which opens the history), Settings, and a red Sign out. In phone landscape the header
+the Downloads tab), Watch history (which opens the history), Settings (which opens the settings),
+and a red Sign out. In phone landscape the header
 moves to a side panel; on wider windows the rows stay in a 640 dp column.
 
 Sign out opens the confirmation (mockup 07): "Sign out?" with Cancel and a red Sign out. The
@@ -331,6 +352,31 @@ shows the thumbnail with its length and a coral progress bar, the title, and the
 when it was last watched; tapping it opens the player, which resumes. The X removes a row at
 once; "Clear all" asks first. Phones show a list, wider windows the feed's grid columns.
 
+### Settings
+
+Settings opens from Profile's Settings row as a pushed screen (no tab bar; Back returns to
+Profile), for guests too. The settings are device-wide: the same for every account and kept
+across sign-out. They are stored in a `settings` Preferences DataStore behind the domain's
+`SettingsRepository`; a value this version does not recognize, or a file that cannot be read,
+falls back to the defaults, so the app always starts.
+
+- **Theme:** System default (the default), Light, or Dark. `AppViewModel` carries the mode in
+  `AppState.Ready` with the start route, so the splash covers the read and a stored Dark never
+  flashes light; a change re-themes every screen at once without touching the back stack.
+  `SystemBarsEffect` matches the window background and the navigation bar's icons to the chosen
+  theme rather than the system's. Shorts stays dark, and onboarding keeps its brand surface.
+- **Download over Wi-Fi only:** off by default. See [Network policy](#offline-downloads).
+- **Download quality:** Data saver (up to 360p), Standard (up to 480p, the default), or High (up
+  to 720p), for new downloads only. On the emulator one 2:45 video saved at 480x270 (9.6 MB),
+  768x432 (30 MB), and 1280x720 (99 MB).
+- **About:** the app's version.
+
+The download settings reach `:core:media` through a narrow `DownloadPreferencesSource` contract, so
+the media layer cannot change settings and a theme change never reaches it. Theme and quality open
+a radio dialog that applies the choice at once (Cancel changes nothing); the dialog survives
+rotation. A failed save shows "Couldn’t save the setting" and the screen keeps showing the stored
+value. Until the settings are read the rows are disabled.
+
 ### Brand: icon, splash, and typeface
 
 - **Launcher icon.** An adaptive icon drawn from the onboarding mark (`StreamlyLogo`): the frosted
@@ -339,8 +385,8 @@ once; "Clear all" asks first. Phones show a list, wider windows the feed's grid 
 - **Splash.** `androidx.core:core-splashscreen` shows the mark on indigo through the Android 12
   splash API, which the library backports to API 24 (checked on Android 14 and 16; the API 24–30
   path is not device-tested). `MainActivity` keeps it on screen while `AppViewModel` is still
-  reading the stored session, so the first screen drawn is already the right one (Home or
-  onboarding), with no placeholder frame. It shows when the app starts, including a restore after
+  reading the stored session and settings, so the first screen drawn is already the right one
+  (Home or onboarding) in the right theme, with no placeholder frame. It shows when the app starts, including a restore after
   process death, but not on rotation or when switching back to a running app.
 - **Typeface.** Baloo Da 2, the font the mockups use, applied once to the whole Material 3 type
   scale in `StreamlyTheme`, so no screen sets a font. Google Fonts ships it only as a variable
@@ -418,7 +464,6 @@ The project is built with Claude Code as the agent throughout.
 - **Player actions are stubs, except Download.** Like and Subscribe toggle only for the current
   screen and are not saved. Share shows a "coming soon" message. Download is real (see
   [Offline downloads](#offline-downloads)).
-- **Settings is a stub.** Its Profile row shows a "coming soon" message.
 - **Shorts actions are stubs.** Like toggles and counts the user's like for as long as the Shorts
   screen lasts. Comment and Share show "coming soon" messages.
 - **Media segments use Media3's HTTP stack.** The API goes through Ktor, but HLS playlists and
@@ -453,8 +498,16 @@ The project is built with Claude Code as the agent throughout.
 - Selecting the Shorts tab again does not scroll back to the first short.
 - Watch history is stored on the device only, per account; with mocked sign-in there is nothing
   to sync it to. Removing a row has no undo, and the history keeps the newest 100 videos.
-- Downloads always save the up-to-480p rendition and may use mobile data; there is no quality or
-  Wi-Fi-only setting yet.
+- On a metered Wi-Fi network (for example a phone hotspot) a Wi-Fi-only download reads "Waiting
+  for Wi-Fi" although the device is on Wi-Fi: Media3 only knows the network is metered.
+- A download waiting for Wi-Fi (or for a network) starts only while the app is open: closing the
+  app on mobile data and arriving home to Wi-Fi does not start it until the app is opened again.
+- A download left waiting by a killed process (offline, or for Wi-Fi) is listed as waiting after
+  the next launch but shows no notification until it starts, because Media3's `DownloadService`
+  enters the foreground only for a running download.
+- Changing the download quality does not re-download existing videos; remove and download again.
+- Fullscreen follows the window: a phone in landscape shows the video full screen. There is no
+  fullscreen button, so with rotation locked, or on a tablet, the player stays inline.
 - Offline, the Downloads tab and the player show a thumbnail only if Coil cached it while online;
   otherwise the placeholder shows. Thumbnails are not saved with the download.
 - Cancelling from the player's progress ring or the Downloads row deletes the partial download

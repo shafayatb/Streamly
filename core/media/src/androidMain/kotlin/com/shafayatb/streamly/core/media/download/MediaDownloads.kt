@@ -3,6 +3,7 @@ package com.shafayatb.streamly.core.media.download
 import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
@@ -19,6 +20,9 @@ import com.shafayatb.streamly.domain.download.DownloadError
 import com.shafayatb.streamly.domain.download.DownloadStatus
 import com.shafayatb.streamly.domain.download.StorageUsage
 import com.shafayatb.streamly.domain.download.VideoDownload
+import com.shafayatb.streamly.domain.settings.DownloadPreferences
+import com.shafayatb.streamly.domain.settings.DownloadPreferencesSource
+import com.shafayatb.streamly.domain.settings.DownloadQuality
 import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.domain.util.EmptyResult
 import com.shafayatb.streamly.domain.util.Result
@@ -44,6 +48,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -65,6 +70,7 @@ import kotlinx.coroutines.withContext
 internal class MediaDownloads(
     context: Context,
     mediaCache: MediaCache,
+    private val downloadPreferences: DownloadPreferencesSource,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : DeviceDownloads, OfflineMediaItems {
 
@@ -80,16 +86,10 @@ internal class MediaDownloads(
         Executors.newFixedThreadPool(DOWNLOAD_THREADS),
     )
 
-    private val helperFactory = DownloadHelper.Factory()
-        .setDataSourceFactory(upstreamDataSourceFactory)
-        .setRenderersFactory(DefaultRenderersFactory(appContext))
-        .setTrackSelectionParameters(
-            // Download defaults force the highest bitrate; the size cap makes that the best
-            // variant up to 480p. Streams without one fall back to their lowest variant.
-            DownloadHelper.DEFAULT_TRACK_SELECTOR_PARAMETERS.buildUpon()
-                .setMaxVideoSize(MAX_VIDEO_WIDTH, MAX_VIDEO_HEIGHT)
-                .build(),
-        )
+    private val renderersFactory = DefaultRenderersFactory(appContext)
+
+    /** `null` until the stored download settings are read. */
+    private val preferences = MutableStateFlow<DownloadPreferences?>(null)
 
     /** `null` until the download index has been read. */
     private val snapshots = MutableStateFlow<Map<String, DownloadSnapshot>?>(null)
@@ -111,7 +111,9 @@ internal class MediaDownloads(
             return@flow
         }
         emitAll(
-            combine(snapshots.filterNotNull(), notMetRequirements) { snapshots, notMet ->
+            // Waits for the stored download settings, so the strict start-up requirement never
+            // shows as "Waiting for Wi-Fi" to someone who allows mobile data.
+            combine(snapshots.filterNotNull(), notMetRequirements, preferences.filterNotNull()) { snapshots, notMet, _ ->
                 Result.Success(snapshots.values.toVideoDownloads(notMet))
             }.distinctUntilChanged(),
         )
@@ -131,7 +133,19 @@ internal class MediaDownloads(
 
     init {
         downloadManager.addListener(ManagerListener())
+        // Until the stored choice is read, only Wi-Fi is allowed. The download service resumes the
+        // manager as soon as it starts, before the DataStore answers, and a Wi-Fi-only user must
+        // never spend mobile data. This message reaches the manager's thread before that resume.
+        downloadManager.requirements = requirementsFor(wifiOnly = true)
         scope.launch { ensureLoaded() }
+        scope.launch {
+            downloadPreferences.downloadPreferences.collect { stored ->
+                // Requirements first: the listener updates notMetRequirements synchronously, so by
+                // the time the downloads flow sees these preferences the status already matches.
+                downloadManager.requirements = requirementsFor(stored.wifiOnly)
+                preferences.value = stored
+            }
+        }
     }
 
     override suspend fun download(video: Video): EmptyResult<DownloadError> {
@@ -145,7 +159,10 @@ internal class MediaDownloads(
     }
 
     private suspend fun prepareAndQueue(video: Video): EmptyResult<DownloadError> {
-        val helper = helperFactory.create(
+        // Read per download: a quality change applies to new downloads only. Retry re-adds the
+        // stored request, so a download keeps the rendition it started with.
+        val quality = preferences.filterNotNull().first().quality
+        val helper = helperFactory(quality).create(
             MediaItem.Builder()
                 .setMediaId(video.id)
                 .setUri(video.hlsUrl)
@@ -154,6 +171,7 @@ internal class MediaDownloads(
         )
         return try {
             helper.prepareAndAwait()
+            Log.d(TAG, "Queuing ${video.id} at $quality: ${helper.selectedVideoSizes()}")
             val request = helper.getDownloadRequest(video.id, DownloadMetadata.of(video).encode())
             DownloadService.sendAddDownload(appContext, StreamlyDownloadService::class.java, request, false)
             Result.Success(Unit)
@@ -253,6 +271,29 @@ internal class MediaDownloads(
         }
     }
 
+    private fun helperFactory(quality: DownloadQuality): DownloadHelper.Factory {
+        val cap = quality.maxVideoSize()
+        return DownloadHelper.Factory()
+            .setDataSourceFactory(upstreamDataSourceFactory)
+            .setRenderersFactory(renderersFactory)
+            .setTrackSelectionParameters(
+                // Download defaults force the highest bitrate; the size cap makes that the best
+                // variant up to the chosen quality. Streams without one fall back to their lowest variant.
+                DownloadHelper.DEFAULT_TRACK_SELECTOR_PARAMETERS.buildUpon()
+                    .setMaxVideoSize(cap.width, cap.height)
+                    .build(),
+            )
+    }
+
+    /** The video renditions the helper chose, e.g. "[854x480]", as device evidence for the quality setting. */
+    private fun DownloadHelper.selectedVideoSizes(): List<String> =
+        (0 until periodCount).flatMap { period ->
+            (0 until getMappedTrackInfo(period).rendererCount).flatMap { renderer -> getTrackSelections(period, renderer) }
+        }
+            .map { it.selectedFormat }
+            .filter { it.height != Format.NO_VALUE }
+            .map { "${it.width}x${it.height}" }
+
     private suspend fun DownloadHelper.prepareAndAwait() = suspendCancellableCoroutine { continuation ->
         prepare(object : DownloadHelper.Callback {
             override fun onPrepared(helper: DownloadHelper, tracksInfoAvailable: Boolean) {
@@ -286,8 +327,6 @@ internal class MediaDownloads(
     private companion object {
         const val TAG = "StreamlyDownloads"
         const val DOWNLOAD_THREADS = 4
-        const val MAX_VIDEO_WIDTH = 854
-        const val MAX_VIDEO_HEIGHT = 480
         val PROGRESS_INTERVAL = 500.milliseconds
     }
 }

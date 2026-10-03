@@ -105,6 +105,13 @@ class DownloadsViewModelTest {
     }
 
     @Test
+    fun aDownloadHeldForWifiSaysSo() {
+        repository.emit(testDownload("wifi", DownloadStatus.WAITING_FOR_WIFI))
+
+        assertEquals(DownloadItemStatus.WaitingForWifi, viewModel().items().single().status)
+    }
+
+    @Test
     fun completedDownloadsAreReadyToPlayAfterTheOnesInProgress() {
         repository.emit(
             testDownload("done", DownloadStatus.COMPLETED, bytesDownloaded = 66_000_000, duration = 10.minutes + 34.seconds),

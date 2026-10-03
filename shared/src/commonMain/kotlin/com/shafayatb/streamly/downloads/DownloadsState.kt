@@ -34,6 +34,7 @@ data class DownloadItemUi(
 sealed interface DownloadItemStatus {
     data object Queued : DownloadItemStatus
     data object WaitingForNetwork : DownloadItemStatus
+    data object WaitingForWifi : DownloadItemStatus
 
     /** [progress] is 0–1, or `null` while the downloader cannot tell (an indeterminate bar). */
     data class Downloading(val progress: Float?, val text: UiText) : DownloadItemStatus

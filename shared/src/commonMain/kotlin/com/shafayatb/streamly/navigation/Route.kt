@@ -28,4 +28,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object WatchHistory : Route
+
+    @Serializable
+    data object Settings : Route
 }

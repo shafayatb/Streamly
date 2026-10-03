@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -77,6 +78,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.downloads_waiting_wifi
 import streamly.shared.generated.resources.player_downloaded
 import streamly.shared.generated.resources.player_download_waiting
 import streamly.shared.generated.resources.player_download_removing
@@ -349,8 +351,10 @@ private fun RowScope.DownloadButton(action: DownloadActionUi, onIntent: (PlayerI
     if (action == DownloadActionUi.Hidden) return
     val inProgress = action is DownloadActionUi.Downloading ||
         action == DownloadActionUi.Queued ||
-        action == DownloadActionUi.WaitingForNetwork
+        action == DownloadActionUi.WaitingForNetwork ||
+        action == DownloadActionUi.WaitingForWifi
     val cancelDescription = stringResource(Res.string.cd_cancel_download)
+    val waitingForWifi = stringResource(Res.string.downloads_waiting_wifi)
     FilledTonalButton(
         onClick = {
             onIntent(
@@ -378,7 +382,11 @@ private fun RowScope.DownloadButton(action: DownloadActionUi, onIntent: (PlayerI
         // A little wider than Like and Share, so "Downloaded" fits on a 360 dp phone.
         modifier = Modifier
             .weight(1.3f)
-            .semantics { if (inProgress) onClick(label = cancelDescription, action = null) },
+            .semantics {
+                if (inProgress) onClick(label = cancelDescription, action = null)
+                // Only "Waiting" fits on a 360 dp phone; TalkBack hears what it is waiting for.
+                if (action == DownloadActionUi.WaitingForWifi) stateDescription = waitingForWifi
+            },
     ) {
         when (action) {
             is DownloadActionUi.Downloading -> {
@@ -393,7 +401,11 @@ private fun RowScope.DownloadButton(action: DownloadActionUi, onIntent: (PlayerI
                     )
                 }
             }
-            DownloadActionUi.Queued, DownloadActionUi.WaitingForNetwork, DownloadActionUi.Removing ->
+            DownloadActionUi.Queued,
+            DownloadActionUi.WaitingForNetwork,
+            DownloadActionUi.WaitingForWifi,
+            DownloadActionUi.Removing,
+            ->
                 CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
             else -> Icon(
                 painter = painterResource(
@@ -412,7 +424,8 @@ private fun RowScope.DownloadButton(action: DownloadActionUi, onIntent: (PlayerI
             text = when (action) {
                 is DownloadActionUi.Downloading -> action.percent?.let { "$it%" } ?: stringResource(Res.string.player_download)
                 DownloadActionUi.Queued -> stringResource(Res.string.player_download_queued)
-                DownloadActionUi.WaitingForNetwork -> stringResource(Res.string.player_download_waiting)
+                DownloadActionUi.WaitingForNetwork, DownloadActionUi.WaitingForWifi ->
+                    stringResource(Res.string.player_download_waiting)
                 DownloadActionUi.Downloaded -> stringResource(Res.string.player_downloaded)
                 DownloadActionUi.Failed -> stringResource(Res.string.player_download_retry)
                 DownloadActionUi.Removing -> stringResource(Res.string.player_download_removing)
