@@ -27,7 +27,8 @@ management, while the acceptance gate is verification of the focused task.
 
 ## Git and AI workflow
 
-- Use **Gitflow**. Keep `main` for verified releases and `develop` for integration. If `develop`
+- Use a simplified **Gitflow** with no release or hotfix branches. Keep `main` for the verified
+  submission and `develop` for integration. If `develop`
   does not yet exist, create it from `main` before the first implementation task. Develop each
   main feature task on `feature/<task-name>` branched from `develop`. Commit small changes (docs,
   agent rules, config tweaks) directly on `develop` without a branch, after the user approves the
@@ -35,11 +36,10 @@ management, while the acceptance gate is verification of the focused task.
   and device gate pass and the user approves the staged diff, make focused commits and merge it into
   `develop`; check the integrated build.
   Leave a failing or unverified feature branch unmerged and report why.
-- For delivery, create `release/<version>` from `develop`. Perform the full end-to-end device pass,
-  regression checks, README/APK/demo review, and any release fixes there. Merge the verified
-  release into `main` and back into `develop`; tag the release if requested. If a post-release
-  fix is needed, branch `hotfix/<name>` from `main` and merge it into both `main` and `develop`
-  after verification. Never force a merge or discard someone else's changes.
+- For delivery, perform the full end-to-end device pass, regression checks, README/APK/demo
+  review, and any final fixes on `develop`. After the user approves, merge the verified `develop`
+  into `main` with `--no-ff`; tag only if requested. A fix after submission is made on `develop`
+  the same way and merged into `main` again. Never force a merge or discard someone else's changes.
 - AI-assisted development is a graded requirement. The commit history must show the agent in the
   loop.
 - Use a `Co-Authored-By:` trailer for each agent-authored commit as this repo's chosen evidence of

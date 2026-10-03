@@ -419,7 +419,7 @@ The project is built with Claude Code as the agent throughout.
   `.cursor/rules/agents.mdc`, `.codex/instructions.md`, and `.antigravity/rules/agents.md` are
   symlinks to it. Detailed references live in [`docs/agent-reference/`](docs/agent-reference).
 - **Small, verified tasks.** Each task has one outcome and its own branch (Gitflow:
-  `feature/*` → `develop` → `release/*` → `main`). The agent builds the change, runs the tests,
+  `feature/*` → `develop` → `main`). The agent builds the change, runs the tests,
   and exercises it on a device or emulator before the task counts as done.
 - **Human review before every commit.** The agent stages each change and stops. I review the diff
   against the rules files before approving the commit or merge.
