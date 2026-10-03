@@ -5,6 +5,7 @@ import com.shafayatb.streamly.data.history.DataStoreWatchHistoryStore
 import com.shafayatb.streamly.data.local.createPreferencesDataStore
 import com.shafayatb.streamly.data.network.createApiHttpClient
 import com.shafayatb.streamly.data.session.DataStoreSessionRepository
+import com.shafayatb.streamly.data.settings.DataStoreSettingsRepository
 import com.shafayatb.streamly.data.shorts.KtorShortsRepository
 import com.shafayatb.streamly.data.video.KtorVideoRepository
 import com.shafayatb.streamly.data.video.catalog.CatalogMockApi
@@ -16,6 +17,8 @@ import com.shafayatb.streamly.domain.history.AccountWatchHistory
 import com.shafayatb.streamly.domain.history.WatchHistoryRepository
 import com.shafayatb.streamly.domain.history.WatchHistoryStore
 import com.shafayatb.streamly.domain.session.SessionRepository
+import com.shafayatb.streamly.domain.settings.DownloadPreferencesSource
+import com.shafayatb.streamly.domain.settings.SettingsRepository
 import com.shafayatb.streamly.domain.shorts.ShortsRepository
 import com.shafayatb.streamly.domain.video.VideoRepository
 import kotlin.time.Clock
@@ -63,6 +66,13 @@ public val dataModule: Module = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         )
     }
+
+    // Device-wide, so it needs no account; one instance serves screens and the download manager.
+    single {
+        DataStoreSettingsRepository(
+            dataStore = createPreferencesDataStore(androidContext(), name = "settings", scope = ioScope()),
+        )
+    } binds arrayOf(SettingsRepository::class, DownloadPreferencesSource::class)
 
     // The catalog API is mocked (see CatalogMockApi); a real backend only needs another engine.
     single { createApiHttpClient(engine = CatalogMockApi().engine()) }
