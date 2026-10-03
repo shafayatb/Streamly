@@ -105,6 +105,35 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun theDialogClosesBeforeTheScreenLeaves() = runTest {
+        val viewModel = ProfileViewModel(FakeSessionRepository(anika))
+
+        viewModel.events.test {
+            viewModel.onIntent(ProfileIntent.RequestSignOut)
+            viewModel.onIntent(ProfileIntent.ConfirmSignOut)
+
+            assertEquals(ProfileEvent.NavigateToOnboarding, awaitItem())
+            // The dialog is its own window, so it would float over onboarding during the exit animation.
+            assertNull(viewModel.state.value.dialog)
+        }
+    }
+
+    @Test
+    fun aSignOutRequestWhileLeavingIsIgnored() = runTest {
+        val viewModel = ProfileViewModel(FakeSessionRepository(anika))
+
+        viewModel.events.test {
+            viewModel.onIntent(ProfileIntent.RequestSignOut)
+            viewModel.onIntent(ProfileIntent.ConfirmSignOut)
+            awaitItem()
+
+            viewModel.onIntent(ProfileIntent.RequestSignOut)
+
+            assertNull(viewModel.state.value.dialog)
+        }
+    }
+
+    @Test
     fun aSecondConfirmWhileSigningOutIsIgnored() {
         val sessions = FakeSessionRepository(anika).apply { gate = CompletableDeferred() }
         val viewModel = ProfileViewModel(sessions)

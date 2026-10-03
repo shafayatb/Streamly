@@ -43,6 +43,7 @@ class ProfileViewModel(
             ProfileIntent.OpenHistory -> send(ProfileEvent.NavigateToHistory)
             ProfileIntent.OpenSettings -> send(ProfileEvent.NavigateToSettings)
             ProfileIntent.RequestSignOut -> _state.update {
+                if (it.isSigningOut) return@update it
                 when (it.account) {
                     ProfileAccount.Loading -> it
                     ProfileAccount.Guest -> it.copy(dialog = ProfileDialog.LEAVE_GUEST)
@@ -60,8 +61,13 @@ class ProfileViewModel(
         _state.update { it.copy(isSigningOut = true) }
         viewModelScope.launch {
             when (sessionRepository.signOut()) {
-                // The dialog stays until the screen is gone, so nothing flashes on the way out.
-                is Result.Success -> _events.send(ProfileEvent.NavigateToOnboarding)
+                // The dialog is its own window, outside the exit animation: left open, it would
+                // float over onboarding until the screen is gone. isSigningOut stays true, so the
+                // leaving screen cannot open it again.
+                is Result.Success -> {
+                    _state.update { it.copy(dialog = null) }
+                    _events.send(ProfileEvent.NavigateToOnboarding)
+                }
                 is Result.Failure -> {
                     _state.update { it.copy(dialog = null, isSigningOut = false) }
                     _events.send(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_sign_out_failed)))

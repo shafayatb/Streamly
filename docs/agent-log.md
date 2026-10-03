@@ -858,3 +858,32 @@ itself.
 - **Commits:** `docs: plan the 1.0 release`, four `fix(downloads)` commits (size units, the
   vanished dialog, removal feedback, pruning), `build(app): add the benchmark build type`,
   `docs: add the 1.0 screenshots, demo, and apk`, and this docs commit.
+
+### 13. Hotfix: the sign-out dialog over onboarding — October 3
+
+- **Branch:** `develop`, like the other post-merge fixes (no hotfix branches).
+- **Prompt:** "the sign out dialog is showing in the sign-in page even after clicking on sign
+  out." Earlier in the same session: the README's demo section and the committed demo video were
+  removed, and the README now links the demo video and the APK on Google Drive (`1ea47d6`).
+- **How the agent worked:** systematic debugging, then test-first.
+  - **Reproduced** on the Galaxy A04 (debug build) with a screen recording read at 10 fps: after
+    tapping Sign out, Profile cross-faded into onboarding while "Sign out?" stayed on top for
+    about 0.7 s, then vanished.
+  - **Root cause.** On success `ProfileViewModel` deliberately left `state.dialog` set ("the
+    dialog stays until the screen is gone"). A dialog is its own window, outside `NavDisplay`'s
+    exit animation, so it lasted until the Profile entry left composition, after the transition.
+  - **Fix.** Close the dialog in the same update path that sends `NavigateToOnboarding`, and
+    ignore `RequestSignOut` while `isSigningOut` is true, so a tap on the still-fading Profile
+    cannot open it over onboarding again. A failed sign-out is unchanged.
+- **Decisions:** close the dialog rather than hide it by lifecycle in the UI: the ViewModel
+  already owns the dialog, and the rule is testable on the host. Profile now fades out for a
+  moment without its dialog, which is the ordinary navigation transition.
+- **Verification:**
+  - **Tests.** Two new host tests failed first (`dialog` was `SIGN_OUT`), then passed:
+    `theDialogClosesBeforeTheScreenLeaves`, `aSignOutRequestWhileLeavingIsIgnored`.
+    `./gradlew check` green (`:shared` 210 host tests). `:shared:connectedAndroidDeviceTest` on
+    the A04: 230 tests, 0 failures.
+  - **Galaxy A04 (Android 14), debug build:** Google sign-in, Profile, Sign out, confirm: the
+    recording shows the dialog gone as the cross-fade starts and onboarding with no dialog. The
+    guest "Leave guest mode?" path behaves the same.
+- **Commits:** `fix(profile): close the sign-out dialog before leaving`.
