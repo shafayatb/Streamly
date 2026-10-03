@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.shafayatb.streamly.downloads.DownloadsRoot
+import com.shafayatb.streamly.history.WatchHistoryRoot
 import com.shafayatb.streamly.home.HomeRoot
 import com.shafayatb.streamly.onboarding.OnboardingRoot
 import com.shafayatb.streamly.onboarding.email.EmailSignInRoot
@@ -30,6 +31,7 @@ private val navigationConfiguration = SavedStateConfiguration {
             subclass(Route.Downloads::class)
             subclass(Route.Profile::class)
             subclass(Route.Player::class)
+            subclass(Route.WatchHistory::class)
         }
     }
 }
@@ -81,6 +83,7 @@ fun AppNavigation(startRoute: Route) {
                     ProfileRoot(
                         bottomInset = bottomInset,
                         onNavigateToDownloads = { backStack.selectTopLevel(Route.Downloads) },
+                        onNavigateToHistory = { backStack.add(Route.WatchHistory) },
                         // Onboarding becomes the only destination: Back exits rather than returning.
                         onNavigateToOnboarding = { backStack.resetTo(Route.Onboarding) },
                     )
@@ -90,6 +93,12 @@ fun AppNavigation(startRoute: Route) {
                         videoId = route.videoId,
                         onNavigateBack = { backStack.popIfNotRoot() },
                         onNavigateToVideo = { videoId -> backStack.replaceTop(Route.Player(videoId)) },
+                    )
+                }
+                entry<Route.WatchHistory> {
+                    WatchHistoryRoot(
+                        onNavigateBack = { backStack.popIfNotRoot() },
+                        onNavigateToPlayer = { videoId -> backStack.add(Route.Player(videoId)) },
                     )
                 }
             },

@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import streamly.shared.generated.resources.Res
-import streamly.shared.generated.resources.profile_history_soon
 import streamly.shared.generated.resources.profile_settings_soon
 import streamly.shared.generated.resources.profile_sign_out_failed
 
@@ -42,7 +41,7 @@ class ProfileViewModel(
     fun onIntent(intent: ProfileIntent) {
         when (intent) {
             ProfileIntent.OpenDownloads -> send(ProfileEvent.NavigateToDownloads)
-            ProfileIntent.OpenHistory -> send(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_history_soon)))
+            ProfileIntent.OpenHistory -> send(ProfileEvent.NavigateToHistory)
             ProfileIntent.OpenSettings -> send(ProfileEvent.ShowMessage(UiText.Resource(Res.string.profile_settings_soon)))
             ProfileIntent.RequestSignOut -> _state.update {
                 when (it.account) {
