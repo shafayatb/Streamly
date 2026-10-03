@@ -10,6 +10,10 @@ import androidx.compose.ui.graphics.Color
 @Composable
 expect fun rememberIsChangingConfigurations(): () -> Boolean
 
+/** Whether the app shares the screen (split-screen or freeform), where orientation requests are ignored. */
+@Composable
+expect fun isInMultiWindowMode(): Boolean
+
 /** Hides the system bars while in the composition, for full-screen playback. */
 @Composable
 expect fun ImmersiveModeEffect()

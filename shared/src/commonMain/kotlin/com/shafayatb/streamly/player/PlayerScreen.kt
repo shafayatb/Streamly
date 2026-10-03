@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,10 +56,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.window.core.layout.WindowSizeClass
 import com.shafayatb.streamly.core.designsystem.components.ChannelAvatar
 import com.shafayatb.streamly.core.designsystem.theme.StreamlyTheme
 import com.shafayatb.streamly.core.presentation.ImmersiveModeEffect
+import com.shafayatb.streamly.core.presentation.isInMultiWindowMode
 import com.shafayatb.streamly.core.presentation.ObserveAsEvents
 import com.shafayatb.streamly.core.presentation.ScreenVisibilityEffect
 import com.shafayatb.streamly.core.presentation.UiText
@@ -131,6 +136,13 @@ fun PlayerRoot(
         onHidden = { viewModel.onIntent(PlayerIntent.ScreenHidden) },
     )
 
+    val windowShape = currentWindowShape()
+    LaunchedEffect(windowShape) { viewModel.onIntent(PlayerIntent.WindowChanged(windowShape)) }
+    OrientationLockEffect(state.fullscreen.orientationLock)
+    DeviceOrientationEffect(state.fullscreen.orientationLock) { orientation, autoRotate ->
+        viewModel.onIntent(PlayerIntent.DeviceOrientationChanged(orientation, autoRotate))
+    }
+
     val requestNotificationPermission = rememberNotificationPermissionRequest()
     PlayerScreen(
         state = state,
@@ -149,16 +161,19 @@ private enum class PlayerLayout {
     /** Expanded width: up next moves to a side column. */
     TWO_PANE,
 
-    /** Short window, i.e. a phone in landscape: the video fills the screen. */
+    /** The user chose fullscreen, or a phone was turned sideways: the video fills the window. */
     FULL_SCREEN,
 }
 
 @Composable
-private fun playerLayout(): PlayerLayout {
+private fun currentWindowShape(): WindowShape =
+    windowShapeOf(currentWindowAdaptiveInfo().windowSizeClass, isInMultiWindowMode())
+
+@Composable
+private fun playerLayout(fullscreen: FullscreenState, windowShape: WindowShape): PlayerLayout {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     return when {
-        !windowSizeClass.isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND) ->
-            PlayerLayout.FULL_SCREEN
+        fullscreen.showsFullscreenIn(windowShape) -> PlayerLayout.FULL_SCREEN
         windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) ->
             PlayerLayout.TWO_PANE
         else -> PlayerLayout.SINGLE_COLUMN
@@ -170,18 +185,27 @@ fun PlayerScreen(
     state: PlayerState,
     onIntent: (PlayerIntent) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    windowShape: WindowShape = currentWindowShape(),
 ) {
     val horizontalInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val layout = playerLayout(state.fullscreen, windowShape)
+    // Registered inside NavDisplay's content, so it takes Back before NavDisplay does. Also on
+    // while a requested rotation is pending, so Back then matches the overlay arrow.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.fullscreen.isFullscreen || layout == PlayerLayout.FULL_SCREEN,
+        onBackCompleted = { onIntent(PlayerIntent.NavigateBack) },
+    )
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        when (playerLayout()) {
+        when (layout) {
             PlayerLayout.FULL_SCREEN -> {
                 ImmersiveModeEffect()
-                PlayerViewport(state = state, onIntent = onIntent, modifier = Modifier.fillMaxSize())
+                PlayerViewport(state = state, onIntent = onIntent, isFullscreen = true, modifier = Modifier.fillMaxSize())
             }
             PlayerLayout.SINGLE_COLUMN -> Column(modifier = Modifier.fillMaxSize()) {
                 InlinePlayer(state = state, onIntent = onIntent)
@@ -250,6 +274,7 @@ private fun InlinePlayer(state: PlayerState, onIntent: (PlayerIntent) -> Unit) {
         PlayerViewport(
             state = state,
             onIntent = onIntent,
+            isFullscreen = false,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f),

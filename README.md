@@ -103,6 +103,7 @@ visibility with `ScreenShown` and `ScreenHidden`:
 |---|---|
 | The app goes to the background | The video pauses. On return it resumes only if it was playing and the player screen is still showing. A video that finishes loading in the background waits until the screen is shown. |
 | Rotation, or a dark-mode switch | Nothing. The screen ignores stop events while the activity is changing configuration. Only the video surface detaches and reattaches; playback continues without rebuffering. |
+| The fullscreen button on a phone | The same as a rotation: the requested orientation recreates the activity once, and playback continues (surface gap 0.2–0.7 s on the test devices, position continuous). |
 | Back, or the on-screen back arrow | Nav3 drops the popped entry's lifecycle to `CREATED` at once, so audio pauses before the exit animation (about 40–110 ms on the test devices). When the entry's ViewModel clears, it calls `stop()`, which unloads the video, frees the decoders, and detaches the surface. The player instance stays. |
 | Up next | The current video stops at once, and the new route replaces the old one, so Back returns to Home. |
 | Another screen covers the player (no such destination exists yet) | The video pauses, and resumes if the player screen returns. |
@@ -126,6 +127,24 @@ everything streamed.
 **Adaptive layout.** A phone in portrait shows the 16:9 player above the details and up next.
 At expanded widths, up next moves to a side column. A short window, such as a phone in landscape,
 shows the video full screen in immersive mode.
+
+**Fullscreen.** A toggle next to mute switches fullscreen on and off. Back, or the overlay's
+arrow, leaves fullscreen before it leaves the screen.
+
+- **On a phone, like YouTube:** the button locks landscape. The lock lasts only until the phone
+  is held sideways; then the sensor takes over again, so turning the phone upright exits.
+  Exiting in landscape locks portrait the same way. With auto-rotate off, the lock lasts until
+  the user exits or leaves the Player. The orientation is given back as soon as the Player is no
+  longer on top (`OrientationReleaseEffect` in `AppNavigation`), not when its exit animation ends.
+- **On a tablet, an unfolded foldable, or a split-screen window:** the button only hides the
+  system bars. Android 16+ ignores orientation requests on large screens, and every version
+  ignores them in multi-window.
+- **The rule:** a pure function in `Fullscreen.kt`, covered by host tests. The ViewModel keeps the
+  state, so it survives the activity recreation the rotation causes. The Android side only applies
+  `requestedOrientation` and runs an `OrientationEventListener` while a lock is held.
+- **No layout switch mid-rotation:** the layout waits for a requested rotation to land.
+  Switching first rebuilt the video surface mid-rotation, and the system held the rotation until
+  it drew, which showed about 1.8 s of black on the emulator.
 
 ### Shorts and the player pool
 
@@ -506,8 +525,13 @@ The project is built with Claude Code as the agent throughout.
   the next launch but shows no notification until it starts, because Media3's `DownloadService`
   enters the foreground only for a running download.
 - Changing the download quality does not re-download existing videos; remove and download again.
-- Fullscreen follows the window: a phone in landscape shows the video full screen. There is no
-  fullscreen button, so with rotation locked, or on a tablet, the player stays inline.
+- In a short split-screen window the video fills the window, and the exit button cannot rotate
+  it, because Android ignores orientation requests in multi-window. A second Back leaves the Player.
+- Picking an up-next video right after leaving fullscreen with the phone still held sideways opens
+  it fullscreen: the new Player starts with no lock, and the sensor says landscape.
+- After process death the fullscreen choice and its orientation lock are not restored; the Player
+  follows the window again.
+- Reading how the phone is held assumes a phone whose natural orientation is portrait.
 - Offline, the Downloads tab and the player show a thumbnail only if Coil cached it while online;
   otherwise the placeholder shows. Thumbnails are not saved with the download.
 - Cancelling from the player's progress ring or the Downloads row deletes the partial download

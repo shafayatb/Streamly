@@ -26,6 +26,9 @@ actual fun rememberIsChangingConfigurations(): () -> Boolean {
 }
 
 @Composable
+actual fun isInMultiWindowMode(): Boolean = LocalContext.current.findActivity()?.isInMultiWindowMode == true
+
+@Composable
 actual fun ImmersiveModeEffect() {
     val view = LocalView.current
     DisposableEffect(view) {
@@ -59,7 +62,7 @@ actual fun SystemBarsEffect(darkTheme: Boolean, windowBackground: Color) {
 private val LightScrim = android.graphics.Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
 private val DarkScrim = android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b)
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null

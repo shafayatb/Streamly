@@ -94,6 +94,8 @@
     <string name="cd_replay">Replay</string>
     <string name="cd_mute">Mute</string>
     <string name="cd_unmute">Unmute</string>
+    <string name="cd_enter_fullscreen">Full screen</string>
+    <string name="cd_exit_fullscreen">Exit full screen</string>
     <string name="cd_seek">Playback position</string>
     <string name="player_error_network">Playback stopped. Check your connection and try again.</string>
     <string name="player_error_source">This video isn’t available right now.</string>

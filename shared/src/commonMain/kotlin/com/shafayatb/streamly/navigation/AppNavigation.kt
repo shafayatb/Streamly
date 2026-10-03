@@ -13,6 +13,8 @@ import com.shafayatb.streamly.history.WatchHistoryRoot
 import com.shafayatb.streamly.home.HomeRoot
 import com.shafayatb.streamly.onboarding.OnboardingRoot
 import com.shafayatb.streamly.onboarding.email.EmailSignInRoot
+import com.shafayatb.streamly.player.OrientationLock
+import com.shafayatb.streamly.player.OrientationLockEffect
 import com.shafayatb.streamly.player.PlayerRoot
 import com.shafayatb.streamly.profile.ProfileRoot
 import com.shafayatb.streamly.settings.SettingsRoot
@@ -46,6 +48,7 @@ fun AppNavigation(startRoute: Route) {
         selected = TopLevelDestination.of(backStack.lastOrNull()),
         onSelect = { backStack.selectTopLevel(it.route) },
     ) { bottomInset ->
+        OrientationReleaseEffect(topRoute = backStack.lastOrNull())
         NavDisplay(
             backStack = backStack,
             onBack = { backStack.popIfNotRoot() },
@@ -110,4 +113,15 @@ fun AppNavigation(startRoute: Route) {
             },
         )
     }
+}
+
+/**
+ * Only the Player asks for an orientation, so the system gets it back as soon as the Player is not
+ * on top. Releasing here rather than when the Player is disposed matters: a popped Player stays
+ * composed for its exit animation, and an activity recreated in that window would dispose it as a
+ * configuration change and keep the lock.
+ */
+@Composable
+internal fun OrientationReleaseEffect(topRoute: NavKey?) {
+    if (topRoute !is Route.Player) OrientationLockEffect(OrientationLock.NONE)
 }

@@ -15,6 +15,7 @@ data class PlayerState(
     val isSubscribed: Boolean = false,
     val download: DownloadActionUi = DownloadActionUi.Hidden,
     val isRemoveDownloadDialogShown: Boolean = false,
+    val fullscreen: FullscreenState = FullscreenState(),
 )
 
 @Immutable

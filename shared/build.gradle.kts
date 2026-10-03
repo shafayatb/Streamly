@@ -52,6 +52,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.navigation3.ui)
+            implementation(libs.navigationevent.compose)
             implementation(libs.compose.material3.adaptive)
             implementation(libs.kotlinx.serialization.core)
             implementation(libs.kotlinx.collections.immutable)

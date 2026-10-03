@@ -59,6 +59,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import streamly.shared.generated.resources.Res
 import streamly.shared.generated.resources.action_retry
+import streamly.shared.generated.resources.cd_enter_fullscreen
+import streamly.shared.generated.resources.cd_exit_fullscreen
 import streamly.shared.generated.resources.cd_mute
 import streamly.shared.generated.resources.cd_navigate_back
 import streamly.shared.generated.resources.cd_pause
@@ -67,6 +69,8 @@ import streamly.shared.generated.resources.cd_replay
 import streamly.shared.generated.resources.cd_seek
 import streamly.shared.generated.resources.cd_unmute
 import streamly.shared.generated.resources.ic_arrow_back
+import streamly.shared.generated.resources.ic_fullscreen
+import streamly.shared.generated.resources.ic_fullscreen_exit
 import streamly.shared.generated.resources.ic_pause
 import streamly.shared.generated.resources.ic_play
 import streamly.shared.generated.resources.ic_replay
@@ -87,6 +91,7 @@ private val ControlsAutoHideDelay = 3.seconds
 internal fun PlayerViewport(
     state: PlayerState,
     onIntent: (PlayerIntent) -> Unit,
+    isFullscreen: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val playback = state.playback
@@ -140,6 +145,7 @@ internal fun PlayerViewport(
             ) {
                 ControlsOverlay(
                     playback = playback,
+                    isFullscreen = isFullscreen,
                     showPlayPause = !showSpinner,
                     scrubPosition = scrubPosition,
                     onScrub = {
@@ -181,6 +187,7 @@ internal fun PlayerViewport(
 @Composable
 private fun ControlsOverlay(
     playback: PlaybackUi,
+    isFullscreen: Boolean,
     showPlayPause: Boolean,
     scrubPosition: Duration?,
     onScrub: (Duration) -> Unit,
@@ -236,6 +243,11 @@ private fun ControlsOverlay(
                     icon = if (playback.isMuted) Res.drawable.ic_volume_off else Res.drawable.ic_volume_up,
                     contentDescription = if (playback.isMuted) Res.string.cd_unmute else Res.string.cd_mute,
                     onClick = { onIntent(PlayerIntent.ToggleMute) },
+                )
+                OverlayIconButton(
+                    icon = if (isFullscreen) Res.drawable.ic_fullscreen_exit else Res.drawable.ic_fullscreen,
+                    contentDescription = if (isFullscreen) Res.string.cd_exit_fullscreen else Res.string.cd_enter_fullscreen,
+                    onClick = { onIntent(if (isFullscreen) PlayerIntent.ExitFullscreen else PlayerIntent.EnterFullscreen) },
                 )
             }
             if (!playback.isLive) {

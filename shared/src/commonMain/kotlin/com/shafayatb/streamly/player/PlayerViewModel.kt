@@ -119,7 +119,16 @@ class PlayerViewModel(
             PlayerIntent.RetryPlayback -> if (ownsPlayer) videoPlayer.retry()
             PlayerIntent.RetryUpNext -> loadUpNext()
             is PlayerIntent.SelectUpNext -> selectUpNext(intent.videoId)
-            PlayerIntent.NavigateBack -> send(PlayerEvent.NavigateBack)
+            PlayerIntent.NavigateBack -> if (screen.value.fullscreen.isFullscreen) {
+                updateFullscreen(FullscreenInput.Exit)
+            } else {
+                send(PlayerEvent.NavigateBack)
+            }
+            PlayerIntent.EnterFullscreen -> updateFullscreen(FullscreenInput.Enter)
+            PlayerIntent.ExitFullscreen -> updateFullscreen(FullscreenInput.Exit)
+            is PlayerIntent.WindowChanged -> updateFullscreen(FullscreenInput.WindowChanged(intent.shape))
+            is PlayerIntent.DeviceOrientationChanged ->
+                updateFullscreen(FullscreenInput.DeviceChanged(intent.orientation, intent.autoRotate))
             PlayerIntent.ToggleLike -> screen.update { it.copy(isLiked = !it.isLiked) }
             PlayerIntent.ToggleSubscribe -> screen.update { it.copy(isSubscribed = !it.isSubscribed) }
             PlayerIntent.Share -> send(PlayerEvent.ShowMessage(UiText.Resource(Res.string.player_share_unavailable)))
@@ -141,6 +150,10 @@ class PlayerViewModel(
         // Saved first: stopping unloads the video and its position.
         recordProgress()
         if (ownsPlayer) videoPlayer.stop()
+    }
+
+    private fun updateFullscreen(input: FullscreenInput) {
+        screen.update { it.copy(fullscreen = it.fullscreen.reduce(input)) }
     }
 
     private fun togglePlayPause() {

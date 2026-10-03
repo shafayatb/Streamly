@@ -633,3 +633,148 @@ itself.
       `:core:media` device-test source set), and TalkBack reads "Waiting, Waiting for Wi-Fi" on
       the Player button.
 - **Commits:** `5f8f11d`, `91ab6bc`, `98ad328`, `ba97e4b`, `8d2df1f`, `2b76a07`, `b0885bc`, and this docs commit.
+
+### 11. Player fullscreen button — October 3
+
+- **Branch:** `feature/player-fullscreen`.
+- **Plan:** [`docs/plans/2026-10-04-player-fullscreen.md`](plans/2026-10-04-player-fullscreen.md),
+  the agreed design and the implementation plan in one file. The name uses October 4, as the
+  handoff asked.
+- **Prompt:** the reviewer asked during the Settings brainstorm why the long-form player has no
+  fullscreen button. The handoff listed the open questions (the button and placement, what
+  fullscreen means on each window, where the state lives, interplay with rotation, and not
+  regressing the player lifecycle) and asked the agent not to decide them silently.
+- **How the agent worked:** the same workflow as tasks 6–10.
+  - **Brainstorming (superpowers *brainstorming*).** The agent read the references, the README,
+    the player screen, viewport, ViewModel, and window effects, and checked two facts first:
+    - The manifest has no `configChanges`, so a requested rotation recreates the activity, the
+      same path a rotation already takes without rebuffering.
+    - The app targets SDK 37, and Android 16+ ignores orientation requests on screens at least
+      600 dp wide.
+
+    It asked one question at a time. The reviewer chose:
+    - **A sensor-aware rotation model, like YouTube.** The lock lasts until the phone is held that
+      way.
+    - **Immersive only on tablets and foldables.**
+    - **The state in the ViewModel, driven by a pure rule.**
+    - **Back exits fullscreen first**, from both the system Back and the overlay arrow.
+
+    The design was approved in two sections.
+  - **Plan (superpowers *writing-plans*).**
+    - Five tasks with test-first steps and code.
+    - Five Review Focus risks, each tied to a test or a device step.
+    - A device script with rotation-locked, sensor-driven, tablet, and regression blocks.
+    - A six-commit sequence.
+
+    The plan flagged one refinement for approval: exiting in landscape always locks portrait,
+    even with auto-rotate off, so a phone locked to landscape still returns to portrait. The
+    reviewer approved it, along with inline execution.
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** Every piece started
+    with a failing test: 27 rule tests, 5 ViewModel tests, and 4 Compose device tests. Each was
+    watched failing for the expected reason: unresolved references, then a missing "Full screen"
+    node, details still shown, and Back finishing the test activity. The Android glue (the
+    `requestedOrientation` effect and the `OrientationEventListener`) has no host test; the device
+    script is its test. A ledger recorded each task and ruling. There were no per-task commits,
+    because the project rule forbids committing before approval.
+- **Decisions:**
+  - **One pure rule.** `Fullscreen.kt` reduces the button, Back, the window shape, and the
+    phone's orientation with the auto-rotate setting into `isFullscreen` plus the orientation to
+    request. It imports nothing from Android or Compose except `@Immutable` and
+    `WindowSizeClass`.
+  - **The ViewModel keeps the state**, so it survives the activity recreation the rotation
+    causes, with no saveable state.
+  - **The Android side stays thin.**
+    - `OrientationLockEffect` sets the orientation in a `LaunchedEffect`, never handing the system
+      `UNSPECIFIED` between two locks.
+    - `OrientationReleaseEffect` in `AppNavigation` gives the orientation back as soon as the Player
+      is not on top. This came from the review; see below.
+    - `DeviceOrientationEffect` runs only while a lock is held.
+  - **The layout predicts the next window** (`showsFullscreenIn`), so a rotation or opening the
+    Player in landscape never flashes the inline layout first.
+- **Problems found:**
+  - **The layout switched before the rotation (found by the device gate).** The first build
+    switched to the fullscreen layout at once, while the phone was still upright.
+    - **Symptom:** the emulator recording showed about 1.8 s of a black portrait fullscreen before
+      the rotation. The player log showed a 1.77 s surface gap, against 0.25 s for a plain
+      rotation.
+    - **Hypothesis and test:** rebuilding the video surface mid-rotation holds the rotation until
+      the new surface draws. A throwaway change that kept the inline layout while the lock was
+      pending gave a 0.22 s gap and about 0.6 s from tap to landscape.
+    - **Fix:** the rule now keeps the window's layout while a requested rotation is on its way
+      (`aPendingRotationKeepsTheWindowsLayoutUntilItLands` failed first).
+  - **Multi-window (asked, not decided silently).** With that fix, the button would do nothing
+    visible in a portrait split-screen window, where Android ignores orientation requests. The
+    reviewer chose to treat a multi-window portrait window like a tablet's: immersive, with no
+    lock. `windowShapeOf` is the new function, and `aPortraitWindowInMultiWindowIsTreatedAsLarge`
+    failed first. `PlayerScreen` takes the window shape as a parameter, so the device tests pin it
+    and run the same in any orientation.
+  - **The device helper missed videos.** Twice its lookup did not find the video, and the taps
+    landed on other screens. Those runs were discarded and repeated step by step.
+- **Verification:**
+  - **Tests.** `./gradlew check` green:
+    - 330 host tests (domain 51, data 47, shared 201, media 31). The new ones are 27 rule tests and
+      5 ViewModel tests.
+    - Lint: 0 errors and the 4 version notices.
+  - **Device tests.** `:shared:connectedAndroidDeviceTest` passes 221 tests, 0 failures, on both
+    the emulator and the A04. That includes the 3 `PlayerFullscreenScreenTest` tests and
+    `OrientationReleaseTest`.
+  - **Emulator (Android 16), rotation locked:**
+    - **Button:** it rotates to landscape and immersive, with exactly one activity relaunch per
+      toggle (`wm_relaunch_resume_activity`).
+    - **Playback:** the surface gap is 0.2–0.4 s, the media position is continuous, and there is
+      no new load.
+    - **Back:** Back and the overlay arrow leave fullscreen first, and a second Back goes Home.
+      Inline Back goes straight Home.
+    - **Release:** Home then rotates with `user_rotation 1`.
+    - **Background:** going to the background and back keeps fullscreen, and the video pauses and
+      resumes at the same position.
+    - **Leaks:** `Activities: 1` after about eight relaunches.
+  - **Emulator, auto-rotate on, sensor via `adb emu sensor set acceleration`:**
+    - **The lock lasts until the phone is held sideways:** it held while the sensor read portrait
+      and released once it read landscape.
+    - **Turning upright exits.**
+    - **Rotating to landscape still enters fullscreen.**
+    - **Back while sideways locks portrait:** the lock lasted until the sensor read upright.
+    - **Leaving with a portrait lock held hands the orientation back:** Home followed the sensor
+      to landscape.
+  - **Tablet windows:**
+    - 2400x1800 at 320 dpi: immersive, with no rotation and no relaunch. Back went to the
+      two-pane layout, then Home.
+    - 1400x2400: a letterboxed immersive video, and exit returned to the single column.
+  - **Regressions:**
+    - The live video shows the toggle with no seek bar.
+    - Shorts autoplay.
+    - TalkBack labels "Full screen" and "Exit full screen" appear in a `uiautomator` dump.
+    - Dark mode is unchanged.
+  - **Galaxy A04 (Android 14):**
+    - With auto-rotate on and rotation locked: enter, exit, re-enter, Back to inline, then Back to
+      Home all pass. There is one relaunch per toggle, and the position is continuous.
+    - Home rotates freely afterwards, and the heap holds `Activities: 1`.
+  - **Unverified:** turning the A04 by hand (sensor steps S1–S6); these were checked on the
+    emulator only.
+- **Fresh review of the whole branch** (one reviewer subagent on Fable). There were no critical
+  issues and two important ones; it assessed the branch as ready to merge with fixes.
+  - **Important, fixed: a lock could outlive the Player.**
+    - **Mechanism:** the Player released the orientation only when disposed, and a popped Player
+      stays composed for its 700 ms exit animation. An activity recreated in that window would
+      skip the release and leave Home locked.
+    - **Reproduction:** the reviewer's three triggers did not reproduce on the emulator. Android
+      freezes input while the display rotates, and taps during the transition go to the outgoing
+      entry.
+    - **Fix:** the mechanism was real, so the release moved to `OrientationReleaseEffect` in
+      `AppNavigation`.
+    - **Test:** `OrientationReleaseTest` pops the Player mid-animation. It failed first (the lock
+      was still `SENSOR_PORTRAIT`).
+  - **Important, fixed: the toggle's label and intent could disagree** during a pending rotation,
+    so a second tap undid the first. The button now sends `EnterFullscreen` or `ExitFullscreen` to
+    match its label, and each is a no-op once applied. `enteringAgainWhileARotationIsPendingChangesNothing`
+    failed first. Back is also enabled while the ViewModel is fullscreen, so it matches the arrow.
+  - **Minor, deferred:**
+    - Up next right after leaving fullscreen sideways opens fullscreen. This is a known gap in the
+      README.
+    - The Back device test does not include `NavDisplay`; the claim that the Player's handler wins
+      rests on device step B1.
+    - The window shape is computed twice.
+    - A KDoc says auto-rotate changes are reported, but they are only seen on the next sensor
+      event.
+- **Commits:** `e2d8ab7`, `29f5fea`, `2239174`, `cdee055`, `2f2f99a`, and this docs commit.
