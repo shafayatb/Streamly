@@ -4,8 +4,11 @@ import com.shafayatb.streamly.domain.session.AuthProvider
 import com.shafayatb.streamly.domain.session.Session
 import com.shafayatb.streamly.domain.session.SessionRepository
 import com.shafayatb.streamly.domain.session.User
+import com.shafayatb.streamly.domain.settings.AppSettings
+import com.shafayatb.streamly.domain.settings.ThemeMode
 import com.shafayatb.streamly.navigation.Route
 import com.shafayatb.streamly.testing.FakeSessionRepository
+import com.shafayatb.streamly.testing.FakeSettingsRepository
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -37,38 +40,67 @@ class AppViewModelTest {
             override val session: Flow<Session?> = MutableSharedFlow()
         }
 
-        assertEquals(AppState.Loading, AppViewModel(pending).state.value)
+        assertEquals(AppState.Loading, AppViewModel(pending, FakeSettingsRepository()).state.value)
     }
 
     @Test
     fun startsAtOnboardingWithoutASession() {
-        val viewModel = AppViewModel(FakeSessionRepository(initial = null))
+        val viewModel = AppViewModel(FakeSessionRepository(initial = null), FakeSettingsRepository())
 
-        assertEquals(AppState.Ready(Route.Onboarding), viewModel.state.value)
+        assertEquals(AppState.Ready(Route.Onboarding, ThemeMode.SYSTEM), viewModel.state.value)
     }
 
     @Test
     fun startsAtHomeForASignedInUser() {
         val user = User("Anika Rahman", "anika@streamly.app", AuthProvider.GOOGLE)
-        val viewModel = AppViewModel(FakeSessionRepository(initial = Session.SignedIn(user)))
+        val viewModel = AppViewModel(FakeSessionRepository(initial = Session.SignedIn(user)), FakeSettingsRepository())
 
-        assertEquals(AppState.Ready(Route.Home), viewModel.state.value)
+        assertEquals(AppState.Ready(Route.Home, ThemeMode.SYSTEM), viewModel.state.value)
     }
 
     @Test
     fun startsAtHomeForAGuest() {
-        val viewModel = AppViewModel(FakeSessionRepository(initial = Session.Guest))
+        val viewModel = AppViewModel(FakeSessionRepository(initial = Session.Guest), FakeSettingsRepository())
 
-        assertEquals(AppState.Ready(Route.Home), viewModel.state.value)
+        assertEquals(AppState.Ready(Route.Home, ThemeMode.SYSTEM), viewModel.state.value)
     }
 
     @Test
     fun keepsTheFirstStartRouteWhenTheSessionChangesLater() {
         val repository = FakeSessionRepository(initial = null)
-        val viewModel = AppViewModel(repository)
+        val viewModel = AppViewModel(repository, FakeSettingsRepository())
 
         repository.setSession(Session.Guest)
 
-        assertEquals(AppState.Ready(Route.Onboarding), viewModel.state.value)
+        assertEquals(AppState.Ready(Route.Onboarding, ThemeMode.SYSTEM), viewModel.state.value)
+    }
+
+    @Test
+    fun staysLoadingUntilTheSettingsAreRead() {
+        val viewModel = AppViewModel(FakeSessionRepository(initial = Session.Guest), FakeSettingsRepository(initial = null))
+
+        assertEquals(AppState.Loading, viewModel.state.value)
+    }
+
+    @Test
+    fun usesTheStoredTheme() {
+        val viewModel = AppViewModel(
+            FakeSessionRepository(initial = Session.Guest),
+            FakeSettingsRepository(initial = AppSettings(themeMode = ThemeMode.DARK)),
+        )
+
+        assertEquals(AppState.Ready(Route.Home, ThemeMode.DARK), viewModel.state.value)
+    }
+
+    @Test
+    fun aThemeChangeKeepsTheStartRoute() {
+        val sessions = FakeSessionRepository(initial = null)
+        val settings = FakeSettingsRepository()
+        val viewModel = AppViewModel(sessions, settings)
+
+        sessions.setSession(Session.Guest)
+        settings.current.value = AppSettings(themeMode = ThemeMode.LIGHT)
+
+        assertEquals(AppState.Ready(Route.Onboarding, ThemeMode.LIGHT), viewModel.state.value)
     }
 }
