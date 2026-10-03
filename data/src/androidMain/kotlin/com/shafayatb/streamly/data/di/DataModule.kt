@@ -1,6 +1,7 @@
 package com.shafayatb.streamly.data.di
 
 import com.shafayatb.streamly.data.download.DataStoreDownloadOwnershipRepository
+import com.shafayatb.streamly.data.history.DataStoreWatchHistoryStore
 import com.shafayatb.streamly.data.local.createPreferencesDataStore
 import com.shafayatb.streamly.data.network.createApiHttpClient
 import com.shafayatb.streamly.data.session.DataStoreSessionRepository
@@ -11,9 +12,13 @@ import com.shafayatb.streamly.domain.download.AccountDownloadRepository
 import com.shafayatb.streamly.domain.download.DownloadAccess
 import com.shafayatb.streamly.domain.download.DownloadOwnershipRepository
 import com.shafayatb.streamly.domain.download.DownloadRepository
+import com.shafayatb.streamly.domain.history.AccountWatchHistory
+import com.shafayatb.streamly.domain.history.WatchHistoryRepository
+import com.shafayatb.streamly.domain.history.WatchHistoryStore
 import com.shafayatb.streamly.domain.session.SessionRepository
 import com.shafayatb.streamly.domain.shorts.ShortsRepository
 import com.shafayatb.streamly.domain.video.VideoRepository
+import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,6 +48,21 @@ public val dataModule: Module = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
         )
     } binds arrayOf(DownloadRepository::class, DownloadAccess::class)
+
+    single<WatchHistoryStore> {
+        DataStoreWatchHistoryStore(
+            dataStore = createPreferencesDataStore(androidContext(), name = "watch_history", scope = ioScope()),
+        )
+    }
+    // Application-scoped, so a Player's last save still lands after its screen is gone.
+    single<WatchHistoryRepository> {
+        AccountWatchHistory(
+            store = get(),
+            sessionRepository = get(),
+            clock = Clock.System,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+    }
 
     // The catalog API is mocked (see CatalogMockApi); a real backend only needs another engine.
     single { createApiHttpClient(engine = CatalogMockApi().engine()) }
