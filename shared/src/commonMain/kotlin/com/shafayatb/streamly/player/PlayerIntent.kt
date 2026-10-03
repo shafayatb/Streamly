@@ -15,7 +15,17 @@ sealed interface PlayerIntent {
     data object RetryUpNext : PlayerIntent
 
     data class SelectUpNext(val videoId: String) : PlayerIntent
+    /** Leaves fullscreen when it shows, and the screen otherwise. */
     data object NavigateBack : PlayerIntent
+
+    data object EnterFullscreen : PlayerIntent
+    data object ExitFullscreen : PlayerIntent
+
+    /** The window's shape, reported on first composition and whenever it changes. */
+    data class WindowChanged(val shape: WindowShape) : PlayerIntent
+
+    /** How the phone is held, reported only while an orientation lock is held. */
+    data class DeviceOrientationChanged(val orientation: DeviceOrientation, val autoRotate: Boolean) : PlayerIntent
 
     data object ToggleLike : PlayerIntent
     data object ToggleSubscribe : PlayerIntent
