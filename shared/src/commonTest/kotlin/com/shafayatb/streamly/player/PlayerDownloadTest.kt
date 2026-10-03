@@ -120,6 +120,8 @@ class PlayerDownloadTest {
         assertEquals(DownloadActionUi.Queued, viewModel.download)
         downloads.emit(testDownload("v1", DownloadStatus.WAITING_FOR_NETWORK))
         assertEquals(DownloadActionUi.WaitingForNetwork, viewModel.download)
+        downloads.emit(testDownload("v1", DownloadStatus.WAITING_FOR_WIFI))
+        assertEquals(DownloadActionUi.WaitingForWifi, viewModel.download)
         downloads.emit(testDownload("v1", DownloadStatus.DOWNLOADING, percent = null))
         assertEquals(DownloadActionUi.Downloading(percent = null), viewModel.download)
         downloads.emit(testDownload("v1", DownloadStatus.COMPLETED))

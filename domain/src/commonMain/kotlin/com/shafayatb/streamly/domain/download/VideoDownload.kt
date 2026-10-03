@@ -19,6 +19,7 @@ public data class VideoDownload(
     val isInProgress: Boolean
         get() = status == DownloadStatus.QUEUED ||
             status == DownloadStatus.WAITING_FOR_NETWORK ||
+            status == DownloadStatus.WAITING_FOR_WIFI ||
             status == DownloadStatus.DOWNLOADING
 }
 
@@ -28,6 +29,9 @@ public enum class DownloadStatus {
 
     /** Waiting for a network connection; it continues on its own when one returns. */
     WAITING_FOR_NETWORK,
+
+    /** Downloads are set to Wi-Fi only and the device is on mobile data; it continues on its own on Wi-Fi. */
+    WAITING_FOR_WIFI,
     DOWNLOADING,
 
     /** Fully saved; plays offline. */

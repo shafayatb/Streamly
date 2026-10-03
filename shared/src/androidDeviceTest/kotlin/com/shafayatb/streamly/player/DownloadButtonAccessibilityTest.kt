@@ -3,6 +3,7 @@ package com.shafayatb.streamly.player
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -55,5 +56,15 @@ class DownloadButtonAccessibilityTest {
 
         assertEquals("Cancel download", label)
         assertEquals(listOf<PlayerIntent>(PlayerIntent.CancelDownload), intents)
+    }
+
+    @Test
+    fun waitingForWifiTellsTalkBackWhatItIsWaitingFor() {
+        showPlayer(DownloadActionUi.WaitingForWifi)
+
+        // Only "Waiting" fits on the button; the state description names the wait.
+        val state = rule.onNodeWithText("Waiting").fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription)
+
+        assertEquals("Waiting for Wi-Fi", state)
     }
 }

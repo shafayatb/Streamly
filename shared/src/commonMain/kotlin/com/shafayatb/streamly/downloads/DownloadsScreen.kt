@@ -75,6 +75,7 @@ import streamly.shared.generated.resources.downloads_retry
 import streamly.shared.generated.resources.downloads_storage
 import streamly.shared.generated.resources.downloads_title
 import streamly.shared.generated.resources.downloads_waiting
+import streamly.shared.generated.resources.downloads_waiting_wifi
 import streamly.shared.generated.resources.error_storage_unknown
 import streamly.shared.generated.resources.ic_close
 import streamly.shared.generated.resources.ic_cloud_off
@@ -192,7 +193,8 @@ private fun DownloadRow(item: DownloadItemUi, onIntent: (DownloadsIntent) -> Uni
     val status = item.status
     val inProgress = status is DownloadItemStatus.Downloading ||
         status == DownloadItemStatus.Queued ||
-        status == DownloadItemStatus.WaitingForNetwork
+        status == DownloadItemStatus.WaitingForNetwork ||
+        status == DownloadItemStatus.WaitingForWifi
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -264,6 +266,8 @@ private fun DownloadStatusLine(status: DownloadItemStatus, onRetry: () -> Unit) 
             Text(stringResource(Res.string.downloads_queued), style = labelStyle, color = muted)
         DownloadItemStatus.WaitingForNetwork ->
             Text(stringResource(Res.string.downloads_waiting), style = labelStyle, color = muted)
+        DownloadItemStatus.WaitingForWifi ->
+            Text(stringResource(Res.string.downloads_waiting_wifi), style = labelStyle, color = muted)
         is DownloadItemStatus.Completed -> {
             val ready = readyColor()
             Row(verticalAlignment = Alignment.CenterVertically) {

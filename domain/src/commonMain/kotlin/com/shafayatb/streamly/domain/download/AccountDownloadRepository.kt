@@ -100,6 +100,7 @@ public class AccountDownloadRepository(
         return when (existing?.status) {
             DownloadStatus.QUEUED,
             DownloadStatus.WAITING_FOR_NETWORK,
+            DownloadStatus.WAITING_FOR_WIFI,
             DownloadStatus.DOWNLOADING,
             DownloadStatus.COMPLETED,
             -> Result.Success(Unit)

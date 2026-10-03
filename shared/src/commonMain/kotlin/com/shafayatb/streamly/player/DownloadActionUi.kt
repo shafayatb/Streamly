@@ -12,6 +12,7 @@ sealed interface DownloadActionUi {
     data object Idle : DownloadActionUi
     data object Queued : DownloadActionUi
     data object WaitingForNetwork : DownloadActionUi
+    data object WaitingForWifi : DownloadActionUi
 
     /** [percent] is `null` while the downloader cannot tell yet. */
     data class Downloading(val percent: Int?) : DownloadActionUi
@@ -31,6 +32,7 @@ internal fun downloadActionOf(isLive: Boolean?, download: VideoDownload?, isStar
         else -> when (download.status) {
             DownloadStatus.QUEUED -> DownloadActionUi.Queued
             DownloadStatus.WAITING_FOR_NETWORK -> DownloadActionUi.WaitingForNetwork
+            DownloadStatus.WAITING_FOR_WIFI -> DownloadActionUi.WaitingForWifi
             DownloadStatus.DOWNLOADING -> DownloadActionUi.Downloading(download.percent?.toInt())
             DownloadStatus.COMPLETED -> DownloadActionUi.Downloaded
             DownloadStatus.FAILED -> DownloadActionUi.Failed

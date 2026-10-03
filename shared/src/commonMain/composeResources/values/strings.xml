@@ -52,6 +52,7 @@
     <string name="downloads_error_title">Couldn’t load your downloads</string>
     <string name="downloads_queued">Queued</string>
     <string name="downloads_waiting">Waiting for network</string>
+    <string name="downloads_waiting_wifi">Waiting for Wi-Fi</string>
     <string name="downloads_progress">%1$s · %2$s</string>
     <string name="downloads_ready">Ready to play</string>
     <string name="downloads_detail">%1$s · %2$s</string>

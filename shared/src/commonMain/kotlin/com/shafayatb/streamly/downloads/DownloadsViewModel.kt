@@ -106,6 +106,7 @@ private fun VideoDownload.toItemUi(): DownloadItemUi = DownloadItemUi(
     status = when (status) {
         DownloadStatus.QUEUED, DownloadStatus.REMOVING -> DownloadItemStatus.Queued
         DownloadStatus.WAITING_FOR_NETWORK -> DownloadItemStatus.WaitingForNetwork
+        DownloadStatus.WAITING_FOR_WIFI -> DownloadItemStatus.WaitingForWifi
         DownloadStatus.DOWNLOADING -> DownloadItemStatus.Downloading(
             progress = percent?.div(100f),
             text = UiText.Resource(
