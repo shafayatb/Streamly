@@ -13,7 +13,7 @@ buildable after each task. These targets do not permit omitting a brief requirem
 3. **October 3 — offline and account:** real Media3 download/progress; offline playback/removal;
    profile and sign-out. Test offline playback with connectivity disabled.
 4. **October 4 — hardening and submission:** adaptive layout regression, state/error polish, regression tests,
-   README, debug APK, and a 2–4 minute demo of all seven reference views.
+   README, the benchmark APK, and a 2–4 minute demo of all seven reference views.
 
 For each task: implement its single outcome, run the build and relevant automated tests, exercise
 the changed journey on a device, then stage a focused commit or a few independently meaningful
@@ -27,17 +27,19 @@ management, while the acceptance gate is verification of the focused task.
 
 ## Git and AI workflow
 
-- Use **Gitflow**. Keep `main` for verified releases and `develop` for integration. If `develop`
+- Use a simplified **Gitflow** with no release or hotfix branches. Keep `main` for the verified
+  submission and `develop` for integration. If `develop`
   does not yet exist, create it from `main` before the first implementation task. Develop each
-  focused task on `feature/<task-name>` branched from `develop`. After its build, relevant tests,
+  main feature task on `feature/<task-name>` branched from `develop`. Commit small changes (docs,
+  agent rules, config tweaks) directly on `develop` without a branch, after the user approves the
+  staged diff. For a feature task, after its build, relevant tests,
   and device gate pass and the user approves the staged diff, make focused commits and merge it into
   `develop`; check the integrated build.
   Leave a failing or unverified feature branch unmerged and report why.
-- For delivery, create `release/<version>` from `develop`. Perform the full end-to-end device pass,
-  regression checks, README/APK/demo review, and any release fixes there. Merge the verified
-  release into `main` and back into `develop`; tag the release if requested. If a post-release
-  fix is needed, branch `hotfix/<name>` from `main` and merge it into both `main` and `develop`
-  after verification. Never force a merge or discard someone else's changes.
+- For delivery, perform the full end-to-end device pass, regression checks, README/APK/demo
+  review, and any final fixes on `develop`. After the user approves, merge the verified `develop`
+  into `main` with `--no-ff`; tag only if requested. A fix after submission is made on `develop`
+  the same way and merged into `main` again. Never force a merge or discard someone else's changes.
 - AI-assisted development is a graded requirement. The commit history must show the agent in the
   loop.
 - Use a `Co-Authored-By:` trailer for each agent-authored commit as this repo's chosen evidence of
@@ -68,4 +70,4 @@ management, while the acceptance gate is verification of the focused task.
 - [ ] Public or invite-only GitHub repo with a clean history and `AGENTS.md` symlinked per tool
 - [ ] README: setup, architecture, AI workflow, shortcuts
 - [ ] 2–4 minute demo covering all seven screens, including a real download playing offline
-- [ ] Debug APK, or a note to build from source
+- [ ] Benchmark APK (release build, R8-minified, debug-signed) and build-from-source instructions

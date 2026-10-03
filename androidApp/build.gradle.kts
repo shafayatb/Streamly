@@ -12,8 +12,12 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":data"))
+    implementation(project(":core:media"))
 
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.koin.android)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
@@ -42,6 +46,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        // The release build, minified and debug-signed so it installs anywhere: what ships with
+        // the submission, and how the app is measured without debug overhead.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
     }
     compileOptions {
