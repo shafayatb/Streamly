@@ -271,4 +271,23 @@ class AccountDownloadRepositoryTest {
 
         assertEquals(mapOf("old" to setOf(anikaKey)), ownership.stored.value)
     }
+
+    @Test
+    fun aRemovalThatCannotBeSavedKeepsTheFilesAndFails() = runTest(UnconfinedTestDispatcher()) {
+        device.set(download("v"))
+        ownership.stored.value = mapOf("v" to setOf(anikaKey))
+        ownership.writeFailure = DataError.Local.DISK_FULL
+
+        assertEquals(Result.Failure(DataError.Local.DISK_FULL), repository().remove("v"))
+        assertEquals(emptyList(), device.removed)
+    }
+
+    @Test
+    fun aRemovalSucceedsWhenItKeepsAnotherAccountsCopy() = runTest(UnconfinedTestDispatcher()) {
+        device.set(download("v"))
+        ownership.stored.value = mapOf("v" to setOf(anikaKey, janeKey))
+
+        assertEquals(Result.Success(Unit), repository().remove("v"))
+        assertEquals(emptyList(), device.removed)
+    }
 }

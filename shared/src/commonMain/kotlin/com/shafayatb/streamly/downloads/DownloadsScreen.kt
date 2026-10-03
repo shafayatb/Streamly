@@ -29,10 +29,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,9 +56,11 @@ import com.shafayatb.streamly.core.presentation.ObserveAsEvents
 import com.shafayatb.streamly.core.presentation.UiText
 import com.shafayatb.streamly.core.presentation.asString
 import com.shafayatb.streamly.core.presentation.feedGridColumns
+import com.shafayatb.streamly.core.presentation.resolve
 import com.shafayatb.streamly.home.FeedLoading
 import com.shafayatb.streamly.home.FeedMessage
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -89,14 +95,25 @@ fun DownloadsRoot(
     viewModel: DownloadsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is DownloadsEvent.NavigateToPlayer -> onNavigateToPlayer(event.videoId)
+            is DownloadsEvent.ShowMessage -> scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(event.message.resolve())
+            }
         }
     }
 
-    DownloadsScreen(state = state, onIntent = viewModel::onIntent, bottomInset = bottomInset)
+    DownloadsScreen(
+        state = state,
+        onIntent = viewModel::onIntent,
+        bottomInset = bottomInset,
+        snackbarHostState = snackbarHostState,
+    )
 }
 
 @Composable
@@ -104,6 +121,7 @@ fun DownloadsScreen(
     state: DownloadsState,
     onIntent: (DownloadsIntent) -> Unit,
     bottomInset: Dp = 0.dp,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val horizontalInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     val contentModifier = Modifier
@@ -111,53 +129,61 @@ fun DownloadsScreen(
         .windowInsetsPadding(horizontalInsets)
     val contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp + bottomInset)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        DownloadsHeader(storage = state.storage?.asString())
-        when (val content = state.content) {
-            DownloadsContent.Loading -> FeedLoading(
-                columns = feedGridColumns(),
-                contentPadding = contentPadding,
-                contentDescription = stringResource(Res.string.downloads_loading),
-                modifier = contentModifier,
-            )
-            DownloadsContent.Empty -> FeedMessage(
-                icon = Res.drawable.ic_download,
-                title = stringResource(Res.string.downloads_empty_title),
-                message = stringResource(Res.string.downloads_empty_body),
-                modifier = contentModifier,
-            )
-            is DownloadsContent.Error -> FeedMessage(
-                icon = Res.drawable.ic_cloud_off,
-                title = stringResource(Res.string.downloads_error_title),
-                message = content.message.asString(),
-                actionLabel = stringResource(Res.string.action_retry),
-                onAction = { onIntent(DownloadsIntent.RetryLoad) },
-                modifier = contentModifier,
-            )
-            is DownloadsContent.Loaded -> LazyVerticalGrid(
-                // The feed's window-size columns: one on phones, two on medium, three on expanded.
-                columns = GridCells.Fixed(feedGridColumns()),
-                contentPadding = contentPadding,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = contentModifier,
-            ) {
-                items(items = content.items, key = { it.videoId }, contentType = { "download" }) { item ->
-                    DownloadRow(item = item, onIntent = onIntent)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            DownloadsHeader(storage = state.storage?.asString())
+            when (val content = state.content) {
+                DownloadsContent.Loading -> FeedLoading(
+                    columns = feedGridColumns(),
+                    contentPadding = contentPadding,
+                    contentDescription = stringResource(Res.string.downloads_loading),
+                    modifier = contentModifier,
+                )
+                DownloadsContent.Empty -> FeedMessage(
+                    icon = Res.drawable.ic_download,
+                    title = stringResource(Res.string.downloads_empty_title),
+                    message = stringResource(Res.string.downloads_empty_body),
+                    modifier = contentModifier,
+                )
+                is DownloadsContent.Error -> FeedMessage(
+                    icon = Res.drawable.ic_cloud_off,
+                    title = stringResource(Res.string.downloads_error_title),
+                    message = content.message.asString(),
+                    actionLabel = stringResource(Res.string.action_retry),
+                    onAction = { onIntent(DownloadsIntent.RetryLoad) },
+                    modifier = contentModifier,
+                )
+                is DownloadsContent.Loaded -> LazyVerticalGrid(
+                    // The feed's window-size columns: one on phones, two on medium, three on expanded.
+                    columns = GridCells.Fixed(feedGridColumns()),
+                    contentPadding = contentPadding,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = contentModifier,
+                ) {
+                    items(items = content.items, key = { it.videoId }, contentType = { "download" }) { item ->
+                        DownloadRow(item = item, onIntent = onIntent)
+                    }
                 }
             }
         }
-    }
 
-    state.pendingRemoval?.let { item ->
-        RemoveDownloadDialog(
-            title = item.title,
-            onConfirm = { onIntent(DownloadsIntent.ConfirmRemove) },
-            onDismiss = { onIntent(DownloadsIntent.DismissRemove) },
+        state.pendingRemoval?.let { item ->
+            RemoveDownloadDialog(
+                title = item.title,
+                onConfirm = { onIntent(DownloadsIntent.ConfirmRemove) },
+                onDismiss = { onIntent(DownloadsIntent.DismissRemove) },
+            )
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomInset),
         )
     }
 }

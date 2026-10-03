@@ -12,6 +12,7 @@ import com.shafayatb.streamly.domain.download.StorageUsage
 import com.shafayatb.streamly.domain.download.VideoDownload
 import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.domain.util.Result
+import com.shafayatb.streamly.domain.util.onFailure
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.download_remove_failed
 import streamly.shared.generated.resources.downloads_detail
 import streamly.shared.generated.resources.downloads_progress
 import streamly.shared.generated.resources.downloads_storage
@@ -66,12 +68,13 @@ class DownloadsViewModel(
     fun onIntent(intent: DownloadsIntent) {
         when (intent) {
             is DownloadsIntent.Open -> open(intent.videoId)
-            is DownloadsIntent.Cancel -> downloadRepository.remove(intent.videoId)
+            is DownloadsIntent.Cancel -> remove(intent.videoId)
             is DownloadsIntent.Retry -> downloadRepository.retry(intent.videoId)
             is DownloadsIntent.RequestRemove -> pendingRemovalId.value = intent.videoId
             DownloadsIntent.ConfirmRemove -> {
-                pendingRemovalId.value?.let(downloadRepository::remove)
+                val videoId = pendingRemovalId.value ?: return
                 pendingRemovalId.value = null
+                remove(videoId)
             }
             DownloadsIntent.DismissRemove -> pendingRemovalId.value = null
             DownloadsIntent.RetryLoad -> load()
@@ -89,6 +92,14 @@ class DownloadsViewModel(
                     ?.filter { it.status != DownloadStatus.REMOVING }
                     ?.map { it.videoId }
                 if (ids != null && pendingRemovalId.value !in ids) pendingRemovalId.value = null
+            }
+        }
+    }
+
+    private fun remove(videoId: String) {
+        viewModelScope.launch {
+            downloadRepository.remove(videoId).onFailure {
+                _events.send(DownloadsEvent.ShowMessage(UiText.Resource(Res.string.download_remove_failed)))
             }
         }
     }

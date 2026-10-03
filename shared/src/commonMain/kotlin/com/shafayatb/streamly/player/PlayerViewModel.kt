@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.download_remove_failed
 import streamly.shared.generated.resources.player_share_unavailable
 
 /**
@@ -145,7 +146,7 @@ class PlayerViewModel(
             }
             PlayerIntent.ConfirmRemoveDownload -> {
                 screen.update { it.copy(isRemoveDownloadDialogShown = false) }
-                downloadRepository.remove(videoId)
+                removeDownload()
             }
             PlayerIntent.DismissRemoveDownload -> screen.update { it.copy(isRemoveDownloadDialogShown = false) }
         }
@@ -194,7 +195,15 @@ class PlayerViewModel(
         // Also covers a download still being prepared: the repository drops that start too.
         downloadStart?.cancel()
         isStartingDownload.value = false
-        downloadRepository.remove(videoId)
+        removeDownload()
+    }
+
+    private fun removeDownload() {
+        viewModelScope.launch {
+            downloadRepository.remove(videoId).onFailure {
+                send(PlayerEvent.ShowMessage(UiText.Resource(Res.string.download_remove_failed)))
+            }
+        }
     }
 
     private fun onScreenShown() {

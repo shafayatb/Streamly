@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.shafayatb.streamly.core.presentation.UiText
 import com.shafayatb.streamly.domain.download.DownloadError
 import com.shafayatb.streamly.domain.download.DownloadStatus
+import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.testing.FakeDownloadRepository
 import com.shafayatb.streamly.testing.FakeVideoPlayer
@@ -28,6 +29,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import streamly.shared.generated.resources.Res
 import streamly.shared.generated.resources.download_error_network
+import streamly.shared.generated.resources.download_remove_failed
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerDownloadTest {
@@ -220,5 +222,18 @@ class PlayerDownloadTest {
         viewModel.onIntent(PlayerIntent.RequestRemoveDownload)
 
         assertFalse(viewModel.state.value.isRemoveDownloadDialogShown)
+    }
+
+    @Test
+    fun aFailedRemovalSaysSo() = runTest {
+        downloads.emit(testDownload("v1", DownloadStatus.COMPLETED))
+        downloads.removeResult = Result.Failure(DataError.Local.UNKNOWN)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.onIntent(PlayerIntent.RequestRemoveDownload)
+            viewModel.onIntent(PlayerIntent.ConfirmRemoveDownload)
+            assertEquals(PlayerEvent.ShowMessage(UiText.Resource(Res.string.download_remove_failed)), awaitItem())
+        }
     }
 }

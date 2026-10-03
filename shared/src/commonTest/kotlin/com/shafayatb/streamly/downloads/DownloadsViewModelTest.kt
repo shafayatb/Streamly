@@ -5,6 +5,7 @@ import com.shafayatb.streamly.core.presentation.UiText
 import com.shafayatb.streamly.domain.download.DownloadStatus
 import com.shafayatb.streamly.domain.download.StorageUsage
 import com.shafayatb.streamly.domain.util.DataError
+import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.testing.FakeDownloadRepository
 import com.shafayatb.streamly.testing.testDownload
 import kotlin.test.AfterTest
@@ -23,6 +24,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import streamly.shared.generated.resources.Res
+import streamly.shared.generated.resources.download_remove_failed
 import streamly.shared.generated.resources.downloads_detail
 import streamly.shared.generated.resources.downloads_progress
 import streamly.shared.generated.resources.downloads_storage
@@ -210,5 +212,30 @@ class DownloadsViewModelTest {
         repository.emit(testDownload("v1"))
 
         assertNull(viewModel.state.value.pendingRemoval)
+    }
+
+    @Test
+    fun aFailedRemovalSaysSo() = runTest {
+        repository.emit(testDownload("v1"))
+        repository.removeResult = Result.Failure(DataError.Local.UNKNOWN)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.onIntent(DownloadsIntent.RequestRemove("v1"))
+            viewModel.onIntent(DownloadsIntent.ConfirmRemove)
+            assertEquals(DownloadsEvent.ShowMessage(UiText.Resource(Res.string.download_remove_failed)), awaitItem())
+        }
+    }
+
+    @Test
+    fun aFailedCancelSaysSo() = runTest {
+        repository.emit(testDownload("v1", DownloadStatus.DOWNLOADING, percent = 10f))
+        repository.removeResult = Result.Failure(DataError.Local.UNKNOWN)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.onIntent(DownloadsIntent.Cancel("v1"))
+            assertEquals(DownloadsEvent.ShowMessage(UiText.Resource(Res.string.download_remove_failed)), awaitItem())
+        }
     }
 }

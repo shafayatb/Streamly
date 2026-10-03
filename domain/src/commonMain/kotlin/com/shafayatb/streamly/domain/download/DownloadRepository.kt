@@ -33,9 +33,10 @@ public interface DownloadRepository {
 
     /**
      * Cancels an unfinished download, including one [download] is still preparing, or deletes a
-     * finished one and frees its space.
+     * finished one and frees its space. Like [download], the removal continues if the caller
+     * stops waiting. Fails only if the change could not be saved; the download is then kept.
      */
-    public fun remove(videoId: String)
+    public suspend fun remove(videoId: String): EmptyResult<DataError.Local>
 }
 
 public enum class DownloadError : Error {

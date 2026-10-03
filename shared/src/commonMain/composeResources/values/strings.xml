@@ -84,6 +84,7 @@
     <string name="download_error_network">Couldn’t start the download. Check your connection and try again.</string>
     <string name="download_error_live">Live streams can’t be downloaded.</string>
     <string name="download_error_unknown">Couldn’t start the download. Please try again.</string>
+    <string name="download_remove_failed">Couldn’t remove the download. Please try again.</string>
     <string name="player_share_unavailable">Sharing is coming soon.</string>
     <string name="player_up_next">Up next</string>
     <string name="player_up_next_empty">Nothing else to watch yet.</string>

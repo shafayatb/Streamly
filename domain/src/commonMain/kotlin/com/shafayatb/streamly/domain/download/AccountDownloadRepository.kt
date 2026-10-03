@@ -6,7 +6,6 @@ import com.shafayatb.streamly.domain.util.DataError
 import com.shafayatb.streamly.domain.util.EmptyResult
 import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.domain.util.onFailure
-import com.shafayatb.streamly.domain.util.onSuccess
 import com.shafayatb.streamly.domain.video.Video
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -120,13 +119,19 @@ public class AccountDownloadRepository(
         }
     }
 
-    override fun remove(videoId: String) {
+    override suspend fun remove(videoId: String): EmptyResult<DataError.Local> {
         starts.remove(videoId)?.cancel()
-        scope.launch {
-            val account = account.first() ?: return@launch
-            ownership.removeOwner(videoId, account).onSuccess { remaining ->
-                if (remaining.isEmpty()) device.remove(videoId)
-            }
+        // In this object's scope, like a start: leaving the screen must not stop between dropping
+        // the owner and deleting the files.
+        return scope.async { removeOwned(videoId) }.await()
+    }
+
+    private suspend fun removeOwned(videoId: String): EmptyResult<DataError.Local> {
+        // Signed out, nothing is owned, so there is nothing to remove.
+        val account = account.first() ?: return Result.Success(Unit)
+        return when (val result = ownership.removeOwner(videoId, account)) {
+            is Result.Failure -> result
+            is Result.Success -> if (result.data.isEmpty()) device.remove(videoId) else Result.Success(Unit)
         }
     }
 

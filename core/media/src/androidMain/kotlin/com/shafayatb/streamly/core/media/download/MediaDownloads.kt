@@ -197,9 +197,10 @@ internal class MediaDownloads(
         DownloadService.sendAddDownload(appContext, StreamlyDownloadService::class.java, request, false)
     }
 
-    override fun remove(videoId: String) {
+    override suspend fun remove(videoId: String): EmptyResult<DataError.Local> {
         pendingStarts.remove(videoId)?.cancel()
         DownloadService.sendRemoveDownload(appContext, StreamlyDownloadService::class.java, videoId, false)
+        return Result.Success(Unit)
     }
 
     override fun completedMediaItem(videoId: String): MediaItem? {

@@ -67,8 +67,12 @@ class FakeDownloadRepository : DownloadRepository {
         retried += videoId
     }
 
-    override fun remove(videoId: String) {
+    /** What [remove] returns. */
+    var removeResult: EmptyResult<DataError.Local> = Result.Success(Unit)
+
+    override suspend fun remove(videoId: String): EmptyResult<DataError.Local> {
         removed += videoId
+        return removeResult
     }
 }
 
