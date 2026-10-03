@@ -21,24 +21,8 @@ Multiplatform, with an Android target only.
 > own launcher icon, a branded splash that stays until the stored session and settings are read,
 > and the mockups' typeface, Baloo Da 2.
 
-## Demo
-
-[![The Streamly player playing a video, with its controls showing](docs/media/demo-poster.jpg)](docs/media/streamly-demo.mp4)
-
-**[Watch the demo (3 min 35 s, silent MP4)](docs/media/streamly-demo.mp4).** It was recorded on a
-Samsung Galaxy A04 (Android 14) from the benchmark APK below.
-
-| Time | What it shows |
-| --- | --- |
-| 0:00 | Splash, onboarding (Google, email, guest), email sign-in |
-| 0:12 | Home feed: loading placeholders, scrolling, category chips |
-| 0:27 | Player: HLS playback, scrubbing, mute, pause and play |
-| 1:00 | Fullscreen in landscape, then Up next into a live stream (LIVE badge, no Download) |
-| 1:22 | A real download with progress in the Player and the Downloads tab (the wait is trimmed) |
-| 1:44 | Shorts: a vertical pager in which only the visible short plays |
-| 2:07 | Offline: Wi-Fi off, the download plays, an unsaved video fails with Try again; Wi-Fi back, retry |
-| 2:51 | Removing the download, with a confirmation |
-| 2:56 | Watch history and resume, the dark theme, sign-out with a confirmation |
+**[Watch the demo video on Google Drive](https://drive.google.com/file/d/1zyIJaD8hWMhGukCOxWLISDx2iURxLBe-/view?usp=drive_link)**
+(3 min 35 s, silent). It was recorded on a Samsung Galaxy A04 (Android 14) from the benchmark APK.
 
 ## Screenshots
 
@@ -64,12 +48,14 @@ Tablet (a 1200x900 dp window) and phone landscape (emulator, benchmark build):
 
 ## Install the APK
 
-[`apk/streamly-1.0-benchmark.apk`](apk/streamly-1.0-benchmark.apk) (3.4 MB) is the build to try,
-on Android 7.0 (API 24) or newer. It is the release build minified with R8 and signed with a debug
-key, so it installs without a store and runs without debug overhead.
+**[Download the APK from Google Drive](https://drive.google.com/file/d/1lorGC2GgANaxj1OnCCQ2paTwjDb4LdxM/view?usp=drive_link)**
+(3.4 MB). The same file is in the repository as
+[`apk/streamly-1.0-benchmark.apk`](apk/streamly-1.0-benchmark.apk). It runs on Android 7.0
+(API 24) or newer. It is the release build minified with R8 and signed with a debug key, so it
+installs without a store and runs without debug overhead.
 
-- **On a phone:** download the file, open it, and allow installing apps from that source when
-  Android asks.
+- **On a phone:** download the file from the Drive link, open it, and allow installing apps from
+  that source when Android asks.
 - **With adb:** `adb install apk/streamly-1.0-benchmark.apk`
 
 Because it is debug-signed, it cannot update a Streamly build signed on another machine. Uninstall
