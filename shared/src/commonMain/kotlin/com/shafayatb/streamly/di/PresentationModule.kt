@@ -30,6 +30,7 @@ val presentationModule: Module = module {
             videoRepository = get(),
             videoPlayer = get(),
             downloadRepository = get(),
+            watchHistory = get(),
             clock = get(),
         )
     }

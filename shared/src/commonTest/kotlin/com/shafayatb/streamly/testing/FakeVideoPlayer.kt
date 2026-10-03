@@ -22,13 +22,21 @@ class FakeVideoPlayer : VideoPlayer {
     var retries = 0
         private set
 
-    override fun load(video: Video, playWhenReady: Boolean) {
+    /** Every start position passed to [load], in order. */
+    val loadedStartPositions = mutableListOf<Duration>()
+
+    /** The status a video reports right after [load]; `BUFFERING` models a stream still filling its buffer. */
+    var loadStatus = PlaybackStatus.READY
+
+    override fun load(video: Video, playWhenReady: Boolean, startPosition: Duration) {
         loadedVideoIds += video.id
+        loadedStartPositions += startPosition
         _state.update {
             PlaybackState(
                 videoId = video.id,
-                status = PlaybackStatus.READY,
+                status = loadStatus,
                 playWhenReady = playWhenReady,
+                position = startPosition,
                 duration = video.duration,
                 isLive = video.isLive,
                 isMuted = it.isMuted,

@@ -18,10 +18,11 @@ public interface VideoPlayer {
     public val state: StateFlow<PlaybackState>
 
     /**
-     * Replaces whatever is loaded with [video], from its start (or the live edge). Playback begins
-     * as soon as enough is buffered if [playWhenReady] is true.
+     * Replaces whatever is loaded with [video], starting at [startPosition] (the live edge for live
+     * streams, which ignore it). Playback begins as soon as enough is buffered if [playWhenReady]
+     * is true.
      */
-    public fun load(video: Video, playWhenReady: Boolean)
+    public fun load(video: Video, playWhenReady: Boolean, startPosition: Duration = Duration.ZERO)
 
     /** Starts or resumes playback. A video that has ended starts again from the beginning. */
     public fun play()

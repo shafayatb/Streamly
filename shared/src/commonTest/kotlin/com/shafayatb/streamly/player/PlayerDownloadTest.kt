@@ -8,6 +8,7 @@ import com.shafayatb.streamly.domain.util.Result
 import com.shafayatb.streamly.testing.FakeDownloadRepository
 import com.shafayatb.streamly.testing.FakeVideoPlayer
 import com.shafayatb.streamly.testing.FakeVideoRepository
+import com.shafayatb.streamly.testing.FakeWatchHistoryRepository
 import com.shafayatb.streamly.testing.testDownload
 import com.shafayatb.streamly.testing.testVideo
 import kotlin.test.AfterTest
@@ -54,6 +55,7 @@ class PlayerDownloadTest {
         videoRepository = FakeVideoRepository(videos = listOf(video, live)),
         videoPlayer = FakeVideoPlayer(),
         downloadRepository = downloads,
+        watchHistory = FakeWatchHistoryRepository(),
         clock = clock,
     )
 

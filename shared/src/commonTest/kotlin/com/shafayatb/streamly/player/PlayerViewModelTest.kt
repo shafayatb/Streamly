@@ -13,6 +13,7 @@ import com.shafayatb.streamly.home.toCardUi
 import com.shafayatb.streamly.testing.FakeDownloadRepository
 import com.shafayatb.streamly.testing.FakeVideoPlayer
 import com.shafayatb.streamly.testing.FakeVideoRepository
+import com.shafayatb.streamly.testing.FakeWatchHistoryRepository
 import com.shafayatb.streamly.testing.testVideo
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -69,6 +70,7 @@ class PlayerViewModelTest {
         videoRepository = repository,
         videoPlayer = player,
         downloadRepository = FakeDownloadRepository().apply { emit() },
+        watchHistory = FakeWatchHistoryRepository(),
         clock = clock,
     )
 
