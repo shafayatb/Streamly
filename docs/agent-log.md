@@ -499,3 +499,137 @@ itself.
     Player writes twice, the device test starts with the dialog already shown, and `DataModule`
     uses `Clock.System`.
 - **Commits:** `ed901bd`, `208fc0d`, `0585258`, `5debf6b`, `987f68b`, and this docs commit.
+
+### 10. Settings — October 3
+
+- **Branch:** `feature/settings`.
+- **Plan:** [`docs/plans/2026-10-03-settings.md`](plans/2026-10-03-settings.md), the agreed design
+  and the implementation plan in one file.
+- **Prompt:** replace Profile's "Settings are coming soon" stub with real settings. The handoff
+  listed four candidates (clear watch history, theme, Wi-Fi-only downloads, download quality) and
+  the open questions (which ones, per account or device-wide, storage, the screen, how the theme
+  reaches `StreamlyTheme`), and asked the agent not to decide them silently.
+- **How the agent worked:** the same workflow as tasks 6–9.
+  - **Brainstorming (superpowers *brainstorming*).** The agent read the references, the task 6–9
+    log, the brief, and the theme, `App`, Profile, `MediaDownloads`, and DataStore code. It
+    classified the task as architectural and asked one question at a time. The reviewer chose:
+    - **Theme, Wi-Fi-only downloads, and download quality.** Clear watch history stays on the
+      History screen only.
+    - **Device-wide settings**, kept across sign-out.
+    - **Three quality tiers** (360p / 480p default / 720p), for new downloads only.
+    - **Wi-Fi only off by default**; when on, a download is queued and shows "Waiting for Wi-Fi",
+      with no extra dialog.
+    - **A pushed screen with an About row.**
+
+    Mid-brainstorm, the reviewer asked why the player has no fullscreen button. The agent
+    explained that fullscreen follows the window (landscape is immersive), named the gaps (rotation
+    lock, tablets), and the reviewer made it a separate task after Settings.
+
+    The agent proposed three ways for the download manager to learn the settings. The reviewer
+    chose the first: `MediaDownloads` reads a narrow domain `DownloadPreferencesSource`. The
+    alternatives were a domain coordinator pushing into `DeviceDownloads`, or quality as a
+    `download()` parameter. The design was approved in four sections.
+  - **Plan (superpowers *writing-plans*).** Seven tasks with test-first steps and code, five Review
+    Focus risks each tied to a test or device step, a device script for both phones, and an
+    eight-commit sequence. The reviewer approved it, chose inline execution, and kept the Player
+    label "Waiting" (the agent had flagged that "Waiting for Wi-Fi" does not fit at 360 dp).
+  - **Build (superpowers *executing-plans* + *test-driven-development*).** Every piece started
+    with a failing test. Where the first failure was a compile error, the agent broke the code on
+    purpose and checked that the right test failed:
+    - an adopted download that is waiting for Wi-Fi placed in the wrong branch
+    - in the Compose tests, a switch that sends nothing, radios that are never selected, and rows
+      that are always enabled
+    - the Player's TalkBack state removed
+
+    A ledger recorded each task and ruling. There were no per-task commits, because the project
+    rule forbids committing before approval.
+- **Decisions:**
+  - **Launch fails safe.** The Media3 1.11.1 sources showed that `DownloadManager` starts paused
+    and that `DownloadService.onCreate` calls `resumeDownloads()` unconditionally, so "pause until
+    the settings are read" would not hold. Instead `MediaDownloads.init` sets
+    `Requirements(NETWORK_UNMETERED)` before the service can resume anything, then applies the
+    stored choice. The downloads flow waits for that choice, so an any-network user never sees a
+    false "Waiting for Wi-Fi".
+  - **The status names the wait.** Offline reports both requirement bits, which maps to "Waiting
+    for network". Only the unmetered bit maps to "Waiting for Wi-Fi". The rule is a pure,
+    host-tested function.
+  - **Quality is read per download.** Retry re-adds the stored request, so a download keeps its
+    stream keys. Debug builds log `Queuing <id> at <quality>: [WxH]` as evidence.
+  - **The theme lives in `AppState.Ready`** next to the start route. The splash covers both reads,
+    a theme change keeps the back stack, and `SystemBarsEffect` sets the window background and the
+    navigation-bar icons from the app's theme. That fixes the old "white window behind Compose in
+    dark mode" minor.
+  - **One brand header.** `BrandTopBar` was extracted from the History screen, so Settings and
+    History share it.
+  - **Rulings during the build** (from the ledger):
+    - The plan missed `AccountDownloadRepository.start`'s exhaustive `when`. `WAITING_FOR_WIFI`
+      joins `WAITING_FOR_NETWORK` (add the owner, don't re-queue), pinned by a new domain test.
+    - `DownloadHelper.rendererCount` does not exist; the code uses
+      `getMappedTrackInfo(period).rendererCount`.
+    - The plan had no test for the Player's TalkBack "Waiting for Wi-Fi"; one was added.
+- **Problems found:**
+  - On the emulator `am kill` did not kill the app, so process death was simulated with
+    `run-as … kill`.
+  - The Galaxy A04 has no SIM data. Its Wi-Fi was marked metered with
+    `cmd netpolicy set metered-network`, which Media3 treats like mobile data.
+  - The first quality test re-downloaded Acoustic, which the guest also owns. Removing it only
+    dropped Anika as an owner, and Download re-shared the 480p copy, as designed. The test moved to
+    an unowned video.
+  - After a relaunch, a waiting download shows no notification, because Media3 foregrounds the
+    service only for a running download. This is documented.
+- **Verification:**
+  - **Tests.** `./gradlew check` green: 298 host tests (domain 51, data 47, shared 169, media 31),
+    lint 0 errors and the 4 version notices. `:shared:connectedAndroidDeviceTest` on the emulator:
+    185 tests, 0 failures, including 4 `SettingsScreenTest` tests and the new
+    `DownloadButtonAccessibilityTest` case.
+  - **Emulator (Android 16, Anika):**
+    - **Theme:**
+      - Settings is pushed with no tab bar.
+      - Dark applies at once in system light, and Light in system dark. Settings stays on top, and
+        Back goes Profile → Home.
+      - A cold launch with Dark stored shows the splash, then dark Home, with no light frame.
+      - Process death on Settings: a new process (pid 7319 → 7730) restores Settings, still Dark.
+      - Light in system dark: no dark frames entering or leaving the Player.
+      - The dialog survives rotation, and Shorts stays dark.
+    - **Wi-Fi only:**
+      - On cellular with it off: downloads run, including right after a cold launch with a partial
+        download.
+      - Switched on mid-download: "Waiting for Wi-Fi", the notification "Downloads waiting for
+        WiFi", and the cache flat.
+      - Force-stop and relaunch on cellular: the cache flat for 30 s.
+      - Wi-Fi back: it resumed at 38%.
+      - Offline: "Waiting for network"; data only: "Waiting for Wi-Fi"; Wi-Fi: resumed.
+      - A new download on cellular: the Player shows "Waiting".
+    - **Quality:**
+      - One 2:45 video at High saved `1280x720` (99 MB), and at Data saver `480x270` (9.6 MB).
+      - The Data saver copy played offline (`Playing download … (2 stream keys)`).
+      - Big Buck Bunny started at Standard and was switched to High mid-way: one `Queuing` line,
+        72 MB for 10:34.
+    - **Layout:** a 700 dp window and a 2400x1800 tablet show the centred column.
+    - **Regression:** `Activities: 1` after six rotations; Shorts kept 2 players after six swipes.
+  - **Galaxy A04 (Android 14, 360 dp, abc@gmail.com):**
+    - Settings and both dialogs fit in light and dark.
+    - On metered Wi-Fi with Wi-Fi only on: `Queuing festival-highlights at STANDARD: [768x432]`.
+      The Player's "Waiting" fits, and Downloads shows "Waiting for Wi-Fi". Unmetered, it resumed
+      and finished at 30 MB.
+    - A cold launch with Dark stored has no light frame.
+    - Both devices were restored to the defaults afterwards.
+  - **Unverified:** a real TalkBack session; the Compose semantics tests cover the announcements.
+- **Fresh review of the whole branch** (one reviewer subagent on Fable; the first dispatch hit a
+  session rate limit and returned nothing, and the retry completed). No critical issues. It
+  confirmed all five Review Focus items against the code and the Media3 sources.
+  - **Important, not fixed in code; the reviewer is asked to decide.** A download waiting for
+    Wi-Fi starts only while the app is open. There is no scheduler, and Android 12+ does not let
+    the app start its download service from the background. The README now says so, under
+    Network policy and Known gaps.
+  - **Re-graded to Important and fixed.** A settings read error turned Wi-Fi only off, so downloads
+    could use mobile data, and the settings flow ended after the error. Now downloads fail safe to
+    Wi-Fi only, and both flows retry every 5 s. `aReadErrorKeepsDownloadsOnWifi` and
+    `theSettingsRecoverWhenTheStoreCanBeReadAgain` failed first.
+  - **Minor:**
+    - **Fixed:** the stale `MainActivity` splash comment.
+    - **Checked on the emulator:** the launch-time flicker check, recorded above.
+    - **Deferred:** no automated test pins `MediaDownloads`' launch ordering (it needs a
+      `:core:media` device-test source set), and TalkBack reads "Waiting, Waiting for Wi-Fi" on
+      the Player button.
+- **Commits:** `5f8f11d`, `91ab6bc`, `98ad328`, `ba97e4b`, `8d2df1f`, `2b76a07`, `b0885bc`, and this docs commit.
