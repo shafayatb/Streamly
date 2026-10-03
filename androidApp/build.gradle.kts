@@ -47,6 +47,16 @@ android {
                 "proguard-rules.pro"
             )
         }
+        // The release build, minified and debug-signed so it installs anywhere: what ships with
+        // the submission, and how the app is measured without debug overhead.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
